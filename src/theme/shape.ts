@@ -1,11 +1,11 @@
 import {Platform} from 'react-native';
 
 export const radii = {
-  sm: 8,
-  md: 14,
-  lg: 18,
-  xl: 24,
-  pill: 9999,
+  sm: 2,
+  md: 4,
+  lg: 4,
+  xl: 4,
+  pill: 4,
 };
 
 export const shadowPresets = {

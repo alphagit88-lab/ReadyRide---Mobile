@@ -18,6 +18,7 @@ export default function DashboardScreen({
   onShowDatePicker,
   formatDateForDisplay,
   todayStatus,
+  onNavigateToVehicles,
 }: {
   vehicleCount: number;
   onLogout: () => void;
@@ -32,6 +33,7 @@ export default function DashboardScreen({
   onShowDatePicker?: () => void;
   formatDateForDisplay?: (date: Date) => string;
   todayStatus?: any;
+  onNavigateToVehicles?: () => void;
 }) {
   const isDriver = user?.role === 'driver';
   const isCompany = user?.role === 'company';
@@ -56,9 +58,8 @@ export default function DashboardScreen({
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={palette.textPrimary} />
       <ScrollView bounces={false} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        
+
         {/* ── Dark Hero Header ── */}
         <View style={styles.hero}>
           <View style={styles.heroInner}>
@@ -81,17 +82,17 @@ export default function DashboardScreen({
               <Text style={styles.logoutButtonText}>Log out</Text>
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.roleRow}>
             <View style={[styles.roleBadge, isDriver ? styles.roleBadgeDriver : styles.roleBadgeCompany]}>
               <Text style={styles.roleBadgeText}>
                 {(user?.role ?? 'user').toUpperCase()}
               </Text>
             </View>
-            
+
             {isDriver && vehicle && (
               <>
-                <Text style={styles.inlineAmount}>Daily: ${parseFloat(vehicle.driver_payment_amount || '0').toFixed(2)}</Text>
+                <Text style={styles.inlineAmount}>Daily: Rs. {parseFloat(vehicle.driver_payment_amount || '0').toFixed(2)}</Text>
                 <View style={[styles.heroStatusChip, hasPaidToday ? styles.heroStatusPaid : styles.heroStatusPending]}>
                   <Text style={styles.heroStatusChipText}>
                     {todayStatus ? (hasPaidToday ? 'Paid today' : 'Pending today') : 'Unknown'}
@@ -110,90 +111,90 @@ export default function DashboardScreen({
         {/* ── Main Content Card ── */}
         <View style={styles.card}>
 
-      {isCompany && (
-        <View style={styles.statsCard}>
-          <View style={styles.iconCircle}>
-            <Text style={styles.iconText}>🚛</Text>
-          </View>
-          <View style={styles.statsCopy}>
-            <Text style={styles.statsLabel}>Total vehicles</Text>
-            <Text style={styles.statsValue}>{vehicleCount}</Text>
-            <Text style={styles.statsHint}>Open Vehicles in the tab below to manage your fleet.</Text>
-          </View>
-        </View>
-      )}
-
-      {isDriver && vehicle && (
-        <View>
-          <View style={styles.sliderWidgetContainer}>
-            <Text style={styles.widgetTitle}>Submit a payment</Text>
-            <Text style={styles.widgetHint}>Pick a date, attach a slip, then send it for approval.</Text>
-
-            <View style={styles.sliderRow}>
-              <TouchableOpacity
-                style={styles.sliderNavBtn}
-                onPress={handlePrevDate}
-                accessibilityLabel="Previous day"
-                hitSlop={4}
-              >
-                <Text style={[styles.sliderNavBtnText, { marginLeft: -2 }]}>{'❮'}</Text>
-              </TouchableOpacity>
-
-              <View style={styles.sliderCenter}>
-                <Text style={styles.fieldLabel}>Payment date</Text>
-                <TouchableOpacity onPress={onShowDatePicker} style={styles.sliderDateBtn} activeOpacity={0.85}>
-                  <Text style={styles.sliderDateText}>
-                    {paymentDateObj && formatDateForDisplay ? formatDateForDisplay(paymentDateObj) : ''}
-                  </Text>
-                </TouchableOpacity>
-
-                <Text style={styles.fieldLabel}>Amount</Text>
-                <TextInput
-                  style={styles.amountInput}
-                  value={paymentAmount}
-                  onChangeText={setPaymentAmount}
-                  keyboardType="decimal-pad"
-                  placeholder="0.00"
-                  placeholderTextColor={palette.textMuted}
-                  accessibilityLabel="Payment amount"
-                />
-
-                <Text style={styles.fieldLabel}>Payment slip</Text>
-                <TouchableOpacity style={styles.sliderAttachBtn} onPress={onSelectFile} activeOpacity={0.85}>
-                  <Text style={styles.sliderAttachIcon}>📎</Text>
-                  <Text style={styles.sliderAttachText} numberOfLines={1}>
-                    {slipFile ? slipFile.name : 'Attach slip (image or PDF)'}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.sliderPayBtn} onPress={onPayNow} activeOpacity={0.85}>
-                  <Text style={styles.sliderPayBtnText}>Pay now</Text>
-                </TouchableOpacity>
+          {isCompany && (
+            <TouchableOpacity style={styles.statsCard} onPress={onNavigateToVehicles} activeOpacity={0.8}>
+              <View style={styles.iconCircle}>
+                <Text style={styles.iconText}>🚛</Text>
               </View>
+              <View style={styles.statsCopy}>
+                <Text style={styles.statsLabel}>Total vehicles</Text>
+                <Text style={styles.statsValue}>{vehicleCount}</Text>
+                <Text style={styles.statsHint}>Open Vehicles in the tab below to manage your fleet.</Text>
+              </View>
+            </TouchableOpacity>
+          )}
 
-              <TouchableOpacity
-                style={styles.sliderNavBtn}
-                onPress={handleNextDate}
-                accessibilityLabel="Next day"
-                hitSlop={4}
-              >
-                <Text style={[styles.sliderNavBtnText, { marginLeft: 2 }]}>{'❯'}</Text>
-              </TouchableOpacity>
+          {isDriver && vehicle && (
+            <View>
+              <View style={styles.sliderWidgetContainer}>
+                <Text style={styles.widgetTitle}>Submit a payment</Text>
+                <Text style={styles.widgetHint}>Pick a date, attach a slip, then send it for approval.</Text>
+
+                <View style={styles.sliderRow}>
+                  <TouchableOpacity
+                    style={styles.sliderNavBtn}
+                    onPress={handlePrevDate}
+                    accessibilityLabel="Previous day"
+                    hitSlop={4}
+                  >
+                    <Text style={[styles.sliderNavBtnText, { marginLeft: -2 }]}>{'❮'}</Text>
+                  </TouchableOpacity>
+
+                  <View style={styles.sliderCenter}>
+                    <Text style={styles.fieldLabel}>Payment date</Text>
+                    <TouchableOpacity onPress={onShowDatePicker} style={styles.sliderDateBtn} activeOpacity={0.85}>
+                      <Text style={styles.sliderDateText}>
+                        {paymentDateObj && formatDateForDisplay ? formatDateForDisplay(paymentDateObj) : ''}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <Text style={styles.fieldLabel}>Amount</Text>
+                    <TextInput
+                      style={styles.amountInput}
+                      value={paymentAmount || vehicle.driver_payment_amount}
+                      onChangeText={setPaymentAmount}
+                      keyboardType="decimal-pad"
+                      placeholder="0.00"
+                      placeholderTextColor={palette.textMuted}
+                      accessibilityLabel="Payment amount"
+                    />
+
+                    <Text style={styles.fieldLabel}>Payment slip</Text>
+                    <TouchableOpacity style={styles.sliderAttachBtn} onPress={onSelectFile} activeOpacity={0.85}>
+                      <Text style={styles.sliderAttachIcon}>📎</Text>
+                      <Text style={styles.sliderAttachText} numberOfLines={1}>
+                        {slipFile ? slipFile.name : 'Attach slip (image or PDF)'}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.sliderPayBtn} onPress={onPayNow} activeOpacity={0.85}>
+                      <Text style={styles.sliderPayBtnText}>Pay now</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.sliderNavBtn}
+                    onPress={handleNextDate}
+                    accessibilityLabel="Next day"
+                    hitSlop={4}
+                  >
+                    <Text style={[styles.sliderNavBtnText, { marginLeft: 2 }]}>{'❯'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
-          </View>
-        </View>
-      )}
+          )}
 
-      {isDriver && !vehicle && (
-        <View style={styles.warningCard}>
-          <Text style={styles.warningText}>
-            You are not assigned to any vehicle.
-          </Text>
-          <Text style={styles.warningSubText}>
-            Please contact your company so they can assign a vehicle in ReadyRide.
-          </Text>
-        </View>
-      )}
+          {isDriver && !vehicle && (
+            <View style={styles.warningCard}>
+              <Text style={styles.warningText}>
+                You are not assigned to any vehicle.
+              </Text>
+              <Text style={styles.warningSubText}>
+                Please contact your company so they can assign a vehicle in ReadyRide.
+              </Text>
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -213,9 +214,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
-  heroInner: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
+  heroInner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'flex-start',
     zIndex: 2,
     marginBottom: spacing.md,
@@ -287,7 +288,7 @@ const styles = StyleSheet.create({
   roleBadgeDriver: { backgroundColor: palette.primary, borderWidth: 0 },
   roleBadgeCompany: { backgroundColor: palette.accent, borderWidth: 0 },
   roleBadgeText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.6, color: palette.textPrimary },
-  
+
   inlineAmount: {
     fontSize: 13,
     fontWeight: '800',
@@ -314,8 +315,8 @@ const styles = StyleSheet.create({
   card: {
     flexGrow: 1,
     backgroundColor: palette.background,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
     marginTop: -24,
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xl,

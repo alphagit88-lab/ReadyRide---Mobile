@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
+  View, Text, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, Alert, Image,
   ActivityIndicator, TextInput, Animated, StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { palette } from '../theme/colors';
 import { spacing } from '../theme/spacing';
@@ -13,8 +14,8 @@ import { radii, shadowPresets } from '../theme/shape';
 const MailIcon = ({ color = palette.textMuted }: { color?: string }) => (
   <View style={{ width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}>
     <View style={{ width: 16, height: 11, borderWidth: 1.5, borderColor: color, borderRadius: 3 }} />
-    <View style={{ position: 'absolute', top: 4, width: 12, height: 1.5, backgroundColor: color, transform: [{ rotate: '32deg' }], left: 2 }} />
-    <View style={{ position: 'absolute', top: 4, width: 12, height: 1.5, backgroundColor: color, transform: [{ rotate: '-32deg' }], right: 2 }} />
+    <View style={{ position: 'absolute', top: 8, width: 10, height: 1.5, backgroundColor: color, transform: [{ rotate: '32deg' }], left: 2 }} />
+    <View style={{ position: 'absolute', top: 8, width: 10, height: 1.5, backgroundColor: color, transform: [{ rotate: '-32deg' }], right: 2 }} />
   </View>
 );
 
@@ -335,7 +336,7 @@ export default function RegisterScreen({
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: palette.background },
+  safe: { flex: 1, backgroundColor: palette.textPrimary },
   kav: { flex: 1 },
   scroll: { flexGrow: 1 },
 

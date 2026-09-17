@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,11 @@ import {
   Modal,
   Linking,
   Image,
+  ActivityIndicator,
 } from 'react-native';
-import {palette} from '../theme/colors';
-import {spacing} from '../theme/spacing';
-import {radii} from '../theme/shape';
+import { palette } from '../theme/colors';
+import { spacing } from '../theme/spacing';
+import { radii } from '../theme/shape';
 import ScreenHeader from '../components/common/ScreenHeader';
 import EmptyState from '../components/common/EmptyState';
 import SelectSheet from '../components/common/SelectSheet';
@@ -31,7 +32,8 @@ export default function PaymentsScreen({
   const [payments, setPayments] = useState<any[]>([]);
   const [filterVehicleId, setFilterVehicleId] = useState('');
   const [filterDriverId, setFilterDriverId] = useState('');
-  
+  const [isLoading, setIsLoading] = useState(true);
+
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [drivers, setDrivers] = useState<any[]>([]);
   const [vehicleModalVisible, setVehicleModalVisible] = useState(false);
@@ -50,8 +52,8 @@ export default function PaymentsScreen({
   const fetchVehiclesAndDrivers = async () => {
     try {
       const [vRes, dRes] = await Promise.all([
-        fetch(`${apiUrl}/vehicles`, { headers: {Authorization: `Bearer ${token}`} }),
-        fetch(`${apiUrl}/drivers`, { headers: {Authorization: `Bearer ${token}`} })
+        fetch(`${apiUrl}/vehicles`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${apiUrl}/drivers`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
       const vData = await vRes.json();
       const dData = await dRes.json();
@@ -63,6 +65,7 @@ export default function PaymentsScreen({
   };
 
   const fetchPayments = async () => {
+    setIsLoading(true);
     try {
       let url = `${apiUrl}/payments?`;
       if (filterVehicleId) {
@@ -73,12 +76,14 @@ export default function PaymentsScreen({
       }
 
       const res = await fetch(url, {
-        headers: {Authorization: `Bearer ${token}`},
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       setPayments(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -86,7 +91,7 @@ export default function PaymentsScreen({
     try {
       const res = await fetch(`${apiUrl}/payments/${id}/approve`, {
         method: 'PUT',
-        headers: {Authorization: `Bearer ${token}`, Accept: 'application/json'},
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       });
       if (res.ok) {
         fetchPayments();
@@ -98,7 +103,7 @@ export default function PaymentsScreen({
       Alert.alert('Error', 'Something went wrong');
     }
   };
-  
+
   const getSelectedVehicleName = () => {
     if (!filterVehicleId) return 'All vehicles';
     const v = vehicles.find(item => item.id.toString() === filterVehicleId);
@@ -144,106 +149,124 @@ export default function PaymentsScreen({
       <View style={styles.cardContainer}>
         {user?.role === 'company' && (
           <View style={styles.filterBlock}>
-          <View style={styles.filterRow}>
-          <TouchableOpacity style={styles.filterDropdownButton} onPress={() => setVehicleModalVisible(true)}>
-              <Text style={[styles.filterDropdownButtonText, !filterVehicleId && { color: palette.textMuted }]} numberOfLines={1}>
+            <View style={styles.filterRow}>
+              <TouchableOpacity style={styles.filterDropdownButton} onPress={() => setVehicleModalVisible(true)}>
+                <Text style={[styles.filterDropdownButtonText, !filterVehicleId && { color: palette.textMuted }]} numberOfLines={1}>
                   {getSelectedVehicleName()}
-              </Text>
-              <Text style={styles.dropdownIcon}>▼</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.filterDropdownButton} onPress={() => setDriverModalVisible(true)}>
-              <Text style={[styles.filterDropdownButtonText, !filterDriverId && { color: palette.textMuted }]} numberOfLines={1}>
+                </Text>
+                <Text style={styles.dropdownIcon}>▼</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.filterDropdownButton} onPress={() => setDriverModalVisible(true)}>
+                <Text style={[styles.filterDropdownButtonText, !filterDriverId && { color: palette.textMuted }]} numberOfLines={1}>
                   {getSelectedDriverName()}
-              </Text>
-              <Text style={styles.dropdownIcon}>▼</Text>
-          </TouchableOpacity>
-          </View>
-          {(filterVehicleId || filterDriverId) ? (
-            <TouchableOpacity
-              style={styles.clearFilters}
-              onPress={() => {
-                setFilterVehicleId('');
-                setFilterDriverId('');
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Clear filters">
-              <Text style={styles.clearFiltersText}>Clear filters</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-      )}
-
-      <FlatList
-        data={payments}
-        keyExtractor={(item: any) => item.id.toString()}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <EmptyState
-            icon="💳"
-            title="No payments found"
-            message={
-              user?.role === 'driver'
-                ? 'When you submit a payment, it will show up here with its status.'
-                : 'Try another filter, or wait for a driver to submit a payment.'
-            }
-          />
-        }
-        renderItem={({item}) => (
-          <View style={styles.card}>
-            {/* Left: amount */}
-            <Text style={styles.cardTitle}>
-              ${parseFloat(item.amount || '0').toFixed(2)}
-            </Text>
-
-            {/* Center: date + vehicle/driver */}
-            <View style={styles.cardCenter}>
-              <Text style={styles.cardChipText}>📅 {item.payment_date}</Text>
-              {user?.role === 'company' && (
-                <>
-                  <Text style={styles.cardChipText} numberOfLines={1}>🚛 {getVehicleName(item.vehicle_id)}</Text>
-                  <Text style={styles.cardChipText} numberOfLines={1}>👤 {getDriverName(item.driver_id)}</Text>
-                </>
-              )}
+                </Text>
+                <Text style={styles.dropdownIcon}>▼</Text>
+              </TouchableOpacity>
             </View>
-
-            {/* Right: status + actions */}
-            <View style={styles.cardRight}>
-              <View style={[
-                styles.pill,
-                item.status === 'approved' ? styles.pillApproved : styles.pillPending,
-              ]}>
-                <Text style={styles.pillText}>{item.status.toUpperCase()}</Text>
-              </View>
-              {user?.role === 'company' && item.slip_path && (
-                <TouchableOpacity
-                  style={styles.viewSlipButton}
-                  onPress={() => {
-                    const fullUrl = apiUrl.replace('/api', '') + '/storage/' + item.slip_path;
-                    if (fullUrl.toLowerCase().endsWith('.pdf')) {
-                      Linking.openURL(fullUrl);
-                    } else {
-                      setSelectedSlipUrl(fullUrl);
-                    }
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel="View payment slip">
-                  <Text style={styles.viewSlipButtonText}>Slip</Text>
-                </TouchableOpacity>
-              )}
-              {user?.role === 'company' && item.status === 'pending' && (
-                <TouchableOpacity
-                  style={styles.approveButton}
-                  onPress={() => handleApprove(item.id)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Approve payment">
-                  <Text style={styles.approveButtonText}>Approve</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            {(filterVehicleId || filterDriverId) ? (
+              <TouchableOpacity
+                style={styles.clearFilters}
+                onPress={() => {
+                  setFilterVehicleId('');
+                  setFilterDriverId('');
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Clear filters">
+                <Text style={styles.clearFiltersText}>Clear filters</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         )}
-      />
+
+        <FlatList
+          data={payments}
+          keyExtractor={(item: any) => item.id.toString()}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            isLoading ? (
+              <ActivityIndicator size="large" color={palette.primary} style={{ marginTop: 40 }} />
+            ) : (
+              <EmptyState
+                icon="💳"
+                title="No payments found"
+                message={
+                  user?.role === 'driver'
+                    ? 'When you submit a payment, it will show up here with its status.'
+                    : 'Try another filter, or wait for a driver to submit a payment.'
+                }
+              />
+            )
+          }
+          renderItem={({ item }) => (
+            <View style={styles.card}>
+              <View style={styles.cardMainRow}>
+                <View style={styles.cardLeftCol}>
+                  <View style={[
+                    styles.pill,
+                    item.status === 'approved' ? styles.pillApproved :
+                      item.status === 'past_due' ? styles.pillPastDue : styles.pillPending,
+                  ]}>
+                    <Text style={styles.pillText}>{item.status.replace('_', ' ').toUpperCase()}</Text>
+                  </View>
+                  <Text style={styles.cardTitle}>
+                    Rs. {parseFloat(item.amount || '0').toFixed(2)}
+                  </Text>
+                </View>
+
+                <View style={styles.cardRightCol}>
+                  <View style={styles.cardDetailRow}>
+                    <Text style={styles.cardDetailText}>{item.payment_date}</Text>
+                    <Text style={styles.cardDetailIcon}>📅</Text>
+                  </View>
+                  {user?.role === 'company' && (
+                    <>
+                      <View style={styles.cardDetailRow}>
+                        <Text style={styles.cardDetailText} numberOfLines={1}>{getVehicleName(item.vehicle_id)}</Text>
+                        <Text style={styles.cardDetailIcon}>🚛</Text>
+                      </View>
+                      <View style={styles.cardDetailRow}>
+                        <Text style={styles.cardDetailText} numberOfLines={1}>{getDriverName(item.driver_id)}</Text>
+                        <Text style={styles.cardDetailIcon}>👤</Text>
+                      </View>
+                    </>
+                  )}
+                </View>
+              </View>
+
+              {((user?.role === 'company' && item.slip_path) || (user?.role === 'company' && item.status === 'pending')) && (
+                <View style={styles.cardFooter}>
+                  {user?.role === 'company' && item.slip_path && (
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() => {
+                        const fullUrl = apiUrl.replace('/api', '') + '/storage/' + item.slip_path;
+                        console.log(fullUrl);
+                        if (fullUrl.toLowerCase().endsWith('.pdf')) {
+                          Linking.openURL(fullUrl);
+                        } else {
+                          setSelectedSlipUrl(fullUrl);
+                        }
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel="View payment slip">
+                      <Text style={styles.actionButtonText}>View Slip</Text>
+                    </TouchableOpacity>
+                  )}
+                  {user?.role === 'company' && item.status === 'pending' && (
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.approveButton]}
+                      onPress={() => handleApprove(item.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Approve payment">
+                      <Text style={[styles.actionButtonText, styles.approveButtonText]}>Approve</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+            </View>
+          )}
+        />
       </View>
 
       <SelectSheet
@@ -253,7 +276,7 @@ export default function PaymentsScreen({
         onSelect={setFilterVehicleId}
         onClose={() => setVehicleModalVisible(false)}
         options={[
-          {id: '', label: 'All vehicles'},
+          { id: '', label: 'All vehicles' },
           ...vehicles.map(v => ({
             id: v.id.toString(),
             label: `${v.name} (${v.license_plate})`,
@@ -268,7 +291,7 @@ export default function PaymentsScreen({
         onSelect={setFilterDriverId}
         onClose={() => setDriverModalVisible(false)}
         options={[
-          {id: '', label: 'All drivers'},
+          { id: '', label: 'All drivers' },
           ...drivers.map(d => ({
             id: d.id.toString(),
             label: `${d.name} (ID: ${d.id})`,
@@ -292,12 +315,12 @@ export default function PaymentsScreen({
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: palette.textPrimary}, // Dark background behind header
+  container: { flex: 1, backgroundColor: palette.textPrimary }, // Dark background behind header
   cardContainer: {
     flex: 1,
     backgroundColor: palette.background,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
     marginTop: -8, // slight overlap adjustment since ScreenHeader has -40
     paddingTop: spacing.xl,
     paddingHorizontal: spacing.xl,
@@ -319,10 +342,10 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 
-  filterBlock: {marginBottom: spacing.lg},
-  filterRow: {flexDirection: 'row', gap: spacing.sm},
-  clearFilters: {alignSelf: 'flex-start', marginTop: spacing.sm, paddingVertical: 6, paddingHorizontal: 2},
-  clearFiltersText: {color: palette.primaryStrong, fontSize: 14, fontWeight: '800'},
+  filterBlock: { marginBottom: spacing.lg },
+  filterRow: { flexDirection: 'row', gap: spacing.sm },
+  clearFilters: { alignSelf: 'flex-start', marginTop: spacing.sm, paddingVertical: 6, paddingHorizontal: 2 },
+  clearFiltersText: { color: palette.primaryStrong, fontSize: 14, fontWeight: '800' },
   filterDropdownButton: {
     flex: 1,
     flexDirection: 'row',
@@ -343,70 +366,76 @@ const styles = StyleSheet.create({
   },
   dropdownIcon: { fontSize: 11, color: palette.textSecondary },
 
-  listContent: {paddingBottom: 100, paddingHorizontal: 0, flexGrow: 1},
+  listContent: { paddingBottom: 100, paddingHorizontal: 0, flexGrow: 1 },
   card: {
     backgroundColor: palette.surface,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    marginBottom: spacing.md,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
     borderRadius: radii.xl,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: palette.border,
     ...require('../theme/shape').shadowPresets.soft,
   },
+  cardMainRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  cardLeftCol: {
+    flex: 1,
+    gap: spacing.xs,
+    alignItems: 'flex-start',
+  },
+  cardRightCol: {
+    flex: 1,
+    gap: 4,
+    alignItems: 'flex-end',
+  },
   cardTitle: {
-    fontSize: 17,
+    fontSize: 22,
     fontWeight: '800',
     color: palette.textPrimary,
-    letterSpacing: -0.3,
-    flexShrink: 0,
+    letterSpacing: -0.5,
   },
-  cardCenter: {
-    flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-  },
-  cardRight: {
-    alignItems: 'flex-end',
-    gap: spacing.xs,
-    flexShrink: 0,
-  },
-  cardChipsRow: {
+  cardDetailRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
     alignItems: 'center',
+    justifyContent: 'flex-end',
   },
-  cardChip: {
-    backgroundColor: palette.gray100,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: palette.gray200,
+  cardDetailIcon: {
+    fontSize: 14,
+    marginLeft: spacing.xs,
   },
-  cardChipText: {
-    fontSize: 12,
+  cardDetailText: {
+    fontSize: 13,
     fontWeight: '600',
     color: palette.textSecondary,
+    textAlign: 'right',
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: palette.border,
+    paddingTop: spacing.md,
+    marginTop: spacing.xs,
   },
 
   pill: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radii.sm,
-    borderWidth: 1.5,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+    borderWidth: 0,
   },
   pillPending: {
     backgroundColor: palette.warning + '20',
-    borderColor: palette.warning,
   },
   pillApproved: {
     backgroundColor: palette.success + '20',
-    borderColor: palette.success,
+  },
+  pillPastDue: {
+    backgroundColor: palette.danger + '20',
   },
   pillText: {
     fontSize: 12,
@@ -415,34 +444,25 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
-  approveButton: {
-    backgroundColor: palette.success,
-    paddingHorizontal: spacing.md,
+  actionButton: {
+    backgroundColor: palette.gray100,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: radii.pill,
     minHeight: 40,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  actionButtonText: {
+    color: palette.textPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  approveButton: {
+    backgroundColor: palette.success,
   },
   approveButtonText: {
     color: '#fff',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-
-  viewSlipButton: {
-    backgroundColor: palette.info,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.pill,
-    minHeight: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  viewSlipButtonText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '800',
   },
 
   imageViewerOverlay: {

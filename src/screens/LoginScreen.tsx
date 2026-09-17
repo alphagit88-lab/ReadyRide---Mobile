@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
+  View, Text, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, Alert, Image,
   ActivityIndicator, TextInput, Animated, StatusBar,
 } from 'react-native';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { palette } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { radii, shadowPresets } from '../theme/shape';
@@ -112,7 +112,7 @@ function FancyInput({
   );
 }
 
-const FIELD_RADIUS = radii.lg; // single source of truth shared by inputs AND buttons
+const FIELD_RADIUS = 4; // max border radius
 
 const inputStyles = StyleSheet.create({
   wrapper: { marginBottom: spacing.md }, // reduced from lg
@@ -147,23 +147,14 @@ const inputStyles = StyleSheet.create({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function LoginScreen({
   onLogin,
-  onRegisterSelect,
   apiUrl,
 }: {
   onLogin: (token: string, user: any) => void;
-  onRegisterSelect: () => void;
   apiUrl: string;
 }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
-
-  useEffect(() => {
-    GoogleSignin.configure({
-      webClientId: '296495329881-i7bt0taej63hemcofjkgmkmf44mjdeq9.apps.googleusercontent.com',
-    });
-  }, []);
 
   const handleLogin = async () => {
     try {
@@ -183,28 +174,7 @@ export default function LoginScreen({
     }
   };
 
-  const signInWithGoogle = async () => {
-    try {
-      setGoogleLoading(true);
-      await GoogleSignin.hasPlayServices();
-      const userInfo = await GoogleSignin.signIn();
-      const idToken = userInfo.data?.idToken;
-      if (!idToken) throw new Error('No ID token received from Google.');
-      const res = await fetch(`${apiUrl}/auth/google`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ id_token: idToken }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Backend verification failed.');
-      onLogin(data.token, data.user);
-    } catch (error: any) {
-      console.log('Google Sign-In Error:', error);
-      Alert.alert('Google Sign-In Failed', error?.message || 'Something went wrong. Please try again.');
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
+
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -277,35 +247,7 @@ export default function LoginScreen({
               )}
             </TouchableOpacity>
 
-            {/* ── Divider ── */}
-            <View style={styles.dividerRow}>
-              <View style={styles.divLine} />
-              <Text style={styles.divLabel}>or continue with</Text>
-              <View style={styles.divLine} />
-            </View>
 
-            {/* ── Google ── */}
-            <TouchableOpacity
-              style={[styles.googleBtn, googleLoading && styles.btnDisabled]}
-              onPress={signInWithGoogle}
-              disabled={googleLoading}
-              activeOpacity={0.88}>
-              <Image
-                source={require('../assets/images/g-logo.png')}
-                style={styles.gIcon}
-              />
-              <Text style={styles.googleBtnText}>
-                {googleLoading ? 'Signing in…' : 'Google'}
-              </Text>
-            </TouchableOpacity>
-
-            {/* ── Footer ── */}
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>New company?</Text>
-              <TouchableOpacity onPress={onRegisterSelect} hitSlop={10}>
-                <Text style={styles.footerLink}> Create an account</Text>
-              </TouchableOpacity>
-            </View>
           </View>
 
         </ScrollView>
@@ -315,7 +257,7 @@ export default function LoginScreen({
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: palette.background },
+  safe: { flex: 1, backgroundColor: palette.textPrimary },
   kav: { flex: 1 },
   scroll: { flexGrow: 1 },
 
@@ -378,8 +320,8 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     backgroundColor: palette.background,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
     marginTop: -32, // adjusted
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xl, // reduced from xxxl
@@ -398,7 +340,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: palette.gray100,
-    borderRadius: radii.pill,
+    borderRadius: 4,
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     gap: 6,

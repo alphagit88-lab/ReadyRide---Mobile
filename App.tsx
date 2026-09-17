@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar,
+  View, Text, StyleSheet, TouchableOpacity, StatusBar,
   Alert, Animated, Platform, ActivityIndicator,
 } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import LoginScreen from './src/screens/LoginScreen';
-import RegisterScreen from './src/screens/RegisterScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import VehiclesScreen from './src/screens/VehiclesScreen';
 import DriversScreen from './src/screens/DriversScreen';
@@ -16,6 +16,7 @@ import * as Keychain from 'react-native-keychain';
 import DocumentPicker from 'react-native-document-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { registerFcmToken, subscribeToForegroundNotifications } from './src/utils/fcmNotifications';
+import SelectSheet from './src/components/common/SelectSheet';
 
 const API_URL = 'https://itexphere.com/fleet/public/api';
 //const API_URL = 'http://10.0.2.2:8000/api';
@@ -27,6 +28,7 @@ export default function App() {
   const [screen, setScreen] = useState('login');
   const [isInitializing, setIsInitializing] = useState(true);
   const [vehicles, setVehicles] = useState<any[]>([]);
+  const [vehiclesLoading, setVehiclesLoading] = useState(true);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [todayStatus, setTodayStatus] = useState<any>(null);
@@ -34,6 +36,7 @@ export default function App() {
   const [paymentDateObj, setPaymentDateObj] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [slipFile, setSlipFile] = useState<any>(null);
+  const [attachmentModalVisible, setAttachmentModalVisible] = useState(false);
   const [toast, setToast] = useState<Toast>(null);
   const toastAnim = useRef(new Animated.Value(0)).current;
 
@@ -52,16 +55,38 @@ export default function App() {
     return `${yyyy}-${mm}-${dd}`;
   };
 
-  const handleSelectFile = async () => {
+  const handleSelectFile = () => {
+    setAttachmentModalVisible(true);
+  };
+
+  const handleAttachmentOption = async (id: string) => {
     try {
-      const res = await DocumentPicker.pick({
-        type: [DocumentPicker.types.images, DocumentPicker.types.pdf],
-      });
-      setSlipFile(res[0]);
-    } catch (err) {
-      if (!DocumentPicker.isCancel(err)) {
-        console.error(err);
+      if (id === 'camera') {
+        const { launchCamera } = require('react-native-image-picker');
+        launchCamera(
+          { mediaType: 'photo', quality: 0.85, saveToPhotos: false },
+          (response: any) => {
+            if (!response.didCancel && !response.errorCode && response.assets?.[0]) {
+              const asset = response.assets[0];
+              setSlipFile({ uri: asset.uri, name: asset.fileName || 'photo.jpg', type: asset.type || 'image/jpeg' });
+            }
+          }
+        );
+      } else if (id === 'gallery') {
+        const res = await DocumentPicker.pick({
+          type: [DocumentPicker.types.images],
+          allowMultiSelection: false,
+        });
+        setSlipFile(res[0]);
+      } else if (id === 'pdf') {
+        const res = await DocumentPicker.pick({
+          type: [DocumentPicker.types.pdf],
+          allowMultiSelection: false,
+        });
+        setSlipFile(res[0]);
       }
+    } catch (err) {
+      if (!DocumentPicker.isCancel(err)) console.error(err);
     }
   };
 
@@ -158,6 +183,7 @@ export default function App() {
   }, [screen, authToken, currentUser?.role]);
 
   const fetchVehicles = async () => {
+    setVehiclesLoading(true);
     try {
       const res = await fetch(`${API_URL}/vehicles`, {
         headers: { Authorization: `Bearer ${authToken}` },
@@ -166,6 +192,8 @@ export default function App() {
       setVehicles(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
+    } finally {
+      setVehiclesLoading(false);
     }
   };
 
@@ -248,173 +276,176 @@ export default function App() {
         <LoginScreen
           apiUrl={API_URL}
           onLogin={handleLogin}
-          onRegisterSelect={() => setScreen('register')}
-        />
-      </>
-    );
-  }
-
-  if (screen === 'register') {
-    return (
-      <>
-        <StatusBar barStyle="dark-content" backgroundColor={palette.background} />
-        <RegisterScreen
-          apiUrl={API_URL}
-          onRegister={handleLogin}
-          onLoginSelect={() => setScreen('login')}
         />
       </>
     );
   }
 
   return (
-    <SafeAreaView style={styles.appContainer}>
-      <StatusBar barStyle="dark-content" backgroundColor={palette.background} />
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.appContainer}>
+        <StatusBar barStyle="light-content" backgroundColor={palette.textPrimary} translucent={false} />
 
-      {/* ─── In-App Toast ─── */}
-      {toast && (
-        <Animated.View
-          style={[
-            styles.toast,
-            { opacity: toastAnim, transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [-60, 0] }) }] },
-          ]}
-        >
-          <Text style={styles.toastTitle}>{toast.title}</Text>
-          <Text style={styles.toastBody}>{toast.body}</Text>
-        </Animated.View>
-      )}
+        {/* ─── In-App Toast ─── */}
+        {toast && (
+          <Animated.View
+            style={[
+              styles.toast,
+              { opacity: toastAnim, transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [-60, 0] }) }] },
+            ]}
+          >
+            <Text style={styles.toastTitle}>{toast.title}</Text>
+            <Text style={styles.toastBody}>{toast.body}</Text>
+          </Animated.View>
+        )}
 
-      {showDatePicker && (
-        <DateTimePicker
-          value={paymentDateObj}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={(event, date) => {
-            setShowDatePicker(false);
-            if (date) {
-              setPaymentDateObj(date);
-            }
-          }}
-        />
-      )}
-
-      {/* ─── Main Content ─── */}
-      <View style={styles.content}>
-        {screen === 'dashboard' && (
-          <DashboardScreen
-            vehicleCount={vehicles.length}
-            onLogout={handleLogout}
-            user={currentUser}
-            paymentDateObj={paymentDateObj}
-            setPaymentDateObj={setPaymentDateObj}
-            slipFile={slipFile}
-            onSelectFile={handleSelectFile}
-            onPayNow={handlePayNow}
-            paymentAmount={paymentAmount}
-            setPaymentAmount={setPaymentAmount}
-            onShowDatePicker={() => setShowDatePicker(true)}
-            formatDateForDisplay={formatDateForDisplay}
-            todayStatus={todayStatus}
-          />
-        )}
-        {screen === 'vehicles' && (
-          <VehiclesScreen
-            vehicles={vehicles}
-            onSaveVehicle={handleSaveVehicle}
-            token={authToken}
-            apiUrl={API_URL}
-          />
-        )}
-        {screen === 'drivers' && (
-          <DriversScreen token={authToken} apiUrl={API_URL} />
-        )}
-        {screen === 'payments' && (
-          <PaymentsScreen
-            token={authToken}
-            apiUrl={API_URL}
-            user={currentUser}
-            onPayPress={() => {
-              setScreen('dashboard');
-              setPaymentDateObj(new Date());
-              if (!paymentAmount && todayStatus?.amount_due) {
-                setPaymentAmount(String(todayStatus.amount_due));
+        {showDatePicker && (
+          <DateTimePicker
+            value={paymentDateObj}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={(event, date) => {
+              setShowDatePicker(false);
+              if (date) {
+                setPaymentDateObj(date);
               }
-              setSlipFile(null);
             }}
           />
         )}
-      </View>
 
-      {/* ─── Bottom Nav ─── */}
-      <View style={styles.navContainer}>
-        <View style={styles.navbar}>
-          <TouchableOpacity
-            style={[styles.navItem, screen === 'dashboard' && styles.navItemActive]}
-            onPress={() => setScreen('dashboard')}
-            accessibilityRole="button"
-            accessibilityLabel="Dashboard"
-            accessibilityState={{ selected: screen === 'dashboard' }}
-          >
-            <Text style={styles.navIcon}>🏠</Text>
-            <Text style={[styles.navText, screen === 'dashboard' && styles.navTextActive]}>
-              Home
-            </Text>
-            {screen === 'dashboard' && <View style={styles.activeIndicator} />}
-          </TouchableOpacity>
-
-          {currentUser?.role === 'company' && (
-            <>
-              <TouchableOpacity
-                style={[styles.navItem, screen === 'vehicles' && styles.navItemActive]}
-                onPress={() => setScreen('vehicles')}
-                accessibilityRole="button"
-                accessibilityLabel="Vehicles"
-                accessibilityState={{ selected: screen === 'vehicles' }}
-              >
-                <Text style={styles.navIcon}>🚛</Text>
-                <Text style={[styles.navText, screen === 'vehicles' && styles.navTextActive]}>
-                  Vehicles
-                </Text>
-                {screen === 'vehicles' && <View style={styles.activeIndicator} />}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.navItem, screen === 'drivers' && styles.navItemActive]}
-                onPress={() => setScreen('drivers')}
-                accessibilityRole="button"
-                accessibilityLabel="Drivers"
-                accessibilityState={{ selected: screen === 'drivers' }}
-              >
-                <Text style={styles.navIcon}>👤</Text>
-                <Text style={[styles.navText, screen === 'drivers' && styles.navTextActive]}>
-                  Drivers
-                </Text>
-                {screen === 'drivers' && <View style={styles.activeIndicator} />}
-              </TouchableOpacity>
-            </>
+        {/* ─── Main Content ─── */}
+        <View style={styles.content}>
+          {screen === 'dashboard' && (
+            <DashboardScreen
+              vehicleCount={vehicles.length}
+              onLogout={handleLogout}
+              user={currentUser}
+              paymentDateObj={paymentDateObj}
+              setPaymentDateObj={setPaymentDateObj}
+              slipFile={slipFile}
+              onSelectFile={handleSelectFile}
+              onPayNow={handlePayNow}
+              paymentAmount={paymentAmount}
+              setPaymentAmount={setPaymentAmount}
+              onShowDatePicker={() => setShowDatePicker(true)}
+              formatDateForDisplay={formatDateForDisplay}
+              todayStatus={todayStatus}
+              onNavigateToVehicles={() => setScreen('vehicles')}
+            />
           )}
-
-          <TouchableOpacity
-            style={[styles.navItem, screen === 'payments' && styles.navItemActive]}
-            onPress={() => setScreen('payments')}
-            accessibilityRole="button"
-            accessibilityLabel="Payments"
-            accessibilityState={{ selected: screen === 'payments' }}
-          >
-            <Text style={styles.navIcon}>💳</Text>
-            <Text style={[styles.navText, screen === 'payments' && styles.navTextActive]}>
-              Payments
-            </Text>
-            {screen === 'payments' && <View style={styles.activeIndicator} />}
-          </TouchableOpacity>
+          {screen === 'vehicles' && (
+            <VehiclesScreen
+              vehicles={vehicles}
+              isLoading={vehiclesLoading}
+              onSaveVehicle={handleSaveVehicle}
+              token={authToken}
+              apiUrl={API_URL}
+            />
+          )}
+          {screen === 'drivers' && (
+            <DriversScreen token={authToken} apiUrl={API_URL} />
+          )}
+          {screen === 'payments' && (
+            <PaymentsScreen
+              token={authToken}
+              apiUrl={API_URL}
+              user={currentUser}
+              onPayPress={() => {
+                setScreen('dashboard');
+                setPaymentDateObj(new Date());
+                if (todayStatus?.amount_due) {
+                  setPaymentAmount(String(todayStatus.amount_due));
+                }
+                setSlipFile(null);
+              }}
+            />
+          )}
         </View>
-      </View>
-    </SafeAreaView>
+
+        {/* ─── Bottom Nav ─── */}
+        <View style={styles.navContainer}>
+          <View style={styles.navbar}>
+            <TouchableOpacity
+              style={[styles.navItem, screen === 'dashboard' && styles.navItemActive]}
+              onPress={() => setScreen('dashboard')}
+              accessibilityRole="button"
+              accessibilityLabel="Dashboard"
+              accessibilityState={{ selected: screen === 'dashboard' }}
+            >
+              <Text style={styles.navIcon}>🏠</Text>
+              <Text style={[styles.navText, screen === 'dashboard' && styles.navTextActive]}>
+                Home
+              </Text>
+              {screen === 'dashboard' && <View style={styles.activeIndicator} />}
+            </TouchableOpacity>
+
+            {currentUser?.role === 'company' && (
+              <>
+                <TouchableOpacity
+                  style={[styles.navItem, screen === 'vehicles' && styles.navItemActive]}
+                  onPress={() => setScreen('vehicles')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Vehicles"
+                  accessibilityState={{ selected: screen === 'vehicles' }}
+                >
+                  <Text style={styles.navIcon}>🚛</Text>
+                  <Text style={[styles.navText, screen === 'vehicles' && styles.navTextActive]}>
+                    Vehicles
+                  </Text>
+                  {screen === 'vehicles' && <View style={styles.activeIndicator} />}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.navItem, screen === 'drivers' && styles.navItemActive]}
+                  onPress={() => setScreen('drivers')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Drivers"
+                  accessibilityState={{ selected: screen === 'drivers' }}
+                >
+                  <Text style={styles.navIcon}>👤</Text>
+                  <Text style={[styles.navText, screen === 'drivers' && styles.navTextActive]}>
+                    Drivers
+                  </Text>
+                  {screen === 'drivers' && <View style={styles.activeIndicator} />}
+                </TouchableOpacity>
+              </>
+            )}
+
+            <TouchableOpacity
+              style={[styles.navItem, screen === 'payments' && styles.navItemActive]}
+              onPress={() => setScreen('payments')}
+              accessibilityRole="button"
+              accessibilityLabel="Payments"
+              accessibilityState={{ selected: screen === 'payments' }}
+            >
+              <Text style={styles.navIcon}>💳</Text>
+              <Text style={[styles.navText, screen === 'payments' && styles.navTextActive]}>
+                Payments
+              </Text>
+              {screen === 'payments' && <View style={styles.activeIndicator} />}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+
+      <SelectSheet
+        visible={attachmentModalVisible}
+        title="Choose how to add your payment slip"
+        options={[
+          { id: 'camera', label: '📷 Take Photo' },
+          { id: 'gallery', label: '🖼️ Choose from Gallery' },
+          { id: 'pdf', label: '📄 Attach PDF' }
+        ]}
+        selectedId=""
+        onSelect={handleAttachmentOption}
+        onClose={() => setAttachmentModalVisible(false)}
+      />
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  appContainer: { flex: 1, backgroundColor: palette.background },
+  appContainer: { flex: 1, backgroundColor: palette.textPrimary },
   content: { flex: 1 },
 
   loadingBrand: {
@@ -436,7 +467,7 @@ const styles = StyleSheet.create({
     bottom: spacing.xl,
     alignSelf: 'center',
     backgroundColor: palette.surface,
-    borderRadius: radii.pill,
+    borderRadius: 9999,
     ...shadowPresets.card,
     elevation: 8,
   },

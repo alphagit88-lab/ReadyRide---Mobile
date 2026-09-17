@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Modal } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Modal, ActivityIndicator } from 'react-native';
 import { palette } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { radii } from '../theme/shape';
@@ -9,11 +9,13 @@ import SelectSheet from '../components/common/SelectSheet';
 
 export default function VehiclesScreen({ 
   vehicles, 
+  isLoading,
   onSaveVehicle,
   token,
   apiUrl
 }: { 
   vehicles: any[], 
+  isLoading?: boolean,
   onSaveVehicle: (vehicle: any) => Promise<void>,
   token: string | null,
   apiUrl: string
@@ -105,11 +107,15 @@ export default function VehiclesScreen({
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
-            <EmptyState
-              icon="🚛"
-              title="No vehicles yet"
-              message="Tap Add to register the first vehicle in your ReadyRide fleet."
-            />
+            isLoading ? (
+              <ActivityIndicator size="large" color={palette.primary} style={{ marginTop: 40 }} />
+            ) : (
+              <EmptyState
+                icon="🚛"
+                title="No vehicles yet"
+                message="Tap Add to register the first vehicle in your ReadyRide fleet."
+              />
+            )
           }
           renderItem={({ item }) => (
             <View style={styles.card}>
@@ -122,7 +128,7 @@ export default function VehiclesScreen({
                   <Text style={styles.pillText}>{item.license_plate}</Text>
                 </View>
                 <Text style={styles.cardSub}>Driver: {getDriverName(item.driver_id)}</Text>
-                <Text style={styles.cardSub}>Daily payment: ${item.driver_payment_amount || '0.00'}</Text>
+                <Text style={styles.cardSub}>Daily payment: Rs. {item.driver_payment_amount || '0.00'}</Text>
               </View>
               <TouchableOpacity style={styles.editButton} onPress={() => openEdit(item)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={`Edit ${item.name}`}>
                 <Text style={styles.editButtonText}>Edit</Text>
@@ -191,8 +197,8 @@ const styles = StyleSheet.create({
   cardContainer: {
     flex: 1,
     backgroundColor: palette.background,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
     marginTop: -8, // slight overlap adjustment since ScreenHeader has -40
     paddingTop: spacing.xl,
     paddingHorizontal: spacing.xl,
