@@ -214,6 +214,10 @@ export default function App() {
     if (authToken && currentUser?.role === 'company' && (screen === 'vehicles' || screen === 'dashboard')) {
       fetchVehicles();
     }
+
+    if (authToken && currentUser?.role === 'driver' && currentUser.vehicle && (screen === 'dashboard')) {
+      setPaymentAmount(currentUser.vehicle.driver_payment_amount);
+    }
   }, [screen, authToken, currentUser?.role]);
 
   const fetchVehicles = async () => {

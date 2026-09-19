@@ -109,6 +109,50 @@ export default function PaymentsScreen({
     }
   };
 
+  const handleToggleStatus = (item: any, newStatus: 'approved' | 'past_due') => {
+    Alert.alert(
+      newStatus === 'approved' ? 'Mark As Paid' : 'Mark As Unpaid',
+      `Are you sure you want to mark this date as ${newStatus === 'approved' ? 'paid' : 'unpaid'}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm',
+          style: newStatus === 'approved' ? 'default' : 'destructive',
+          onPress: async () => {
+            try {
+              const res = await fetch(`${apiUrl}/payments/toggle-status`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${token}`,
+                  Accept: 'application/json',
+                },
+                body: JSON.stringify({
+                  payment_id: item.id.toString().startsWith('past_due_') ? null : item.id,
+                  driver_id: item.driver_id,
+                  payment_date: item.payment_date,
+                  status: newStatus,
+                }),
+              });
+              if (res.ok) {
+                const updatedPayment = await res.json();
+                setPayments(prev => prev.map(p => {
+                  if (p.id === item.id) return updatedPayment;
+                  return p;
+                }));
+              } else {
+                const data = await res.json();
+                Alert.alert('Error', data.message || 'Failed to update status');
+              }
+            } catch (err) {
+              Alert.alert('Error', 'Something went wrong');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const getSelectedVehicleName = () => {
     if (!filterVehicleId) return 'All vehicles';
     const v = vehicles.find(item => item.id.toString() === filterVehicleId);
@@ -291,9 +335,9 @@ export default function PaymentsScreen({
                   </View>
                 </View>
 
-                {((user?.role === 'company' && item.slip_path) || (user?.role === 'company' && item.status === 'pending')) && (
+                {user?.role === 'company' && (
                   <View style={styles.cardFooter}>
-                    {user?.role === 'company' && item.slip_path && (
+                    {item.slip_path && (
                       <TouchableOpacity
                         style={styles.actionButton}
                         onPress={async () => {
@@ -317,13 +361,31 @@ export default function PaymentsScreen({
                         )}
                       </TouchableOpacity>
                     )}
-                    {user?.role === 'company' && item.status === 'pending' && (
+                    {item.status === 'past_due' && (
+                      <TouchableOpacity
+                        style={[styles.actionButton, styles.approveButton]}
+                        onPress={() => handleToggleStatus(item, 'approved')}
+                        accessibilityRole="button"
+                        accessibilityLabel="Mark as paid">
+                        <Text style={[styles.actionButtonText, styles.approveButtonText]}>Mark As Paid</Text>
+                      </TouchableOpacity>
+                    )}
+                    {item.status === 'pending' && (
                       <TouchableOpacity
                         style={[styles.actionButton, styles.approveButton]}
                         onPress={() => handleApprove(item.id)}
                         accessibilityRole="button"
                         accessibilityLabel="Approve payment">
                         <Text style={[styles.actionButtonText, styles.approveButtonText]}>Approve</Text>
+                      </TouchableOpacity>
+                    )}
+                    {(item.status === 'approved' || item.status === 'pending') && (
+                      <TouchableOpacity
+                        style={[styles.actionButton, { backgroundColor: `${palette.danger}1A`, borderColor: palette.danger, borderWidth: 1 }]}
+                        onPress={() => handleToggleStatus(item, 'past_due')}
+                        accessibilityRole="button"
+                        accessibilityLabel="Mark as unpaid">
+                        <Text style={[styles.actionButtonText, { color: palette.danger }]}>Mark As Unpaid</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -534,10 +596,10 @@ const styles = StyleSheet.create({
 
   actionButton: {
     backgroundColor: palette.gray100,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
     borderRadius: radii.pill,
-    minHeight: 40,
+    minHeight: 30,
     justifyContent: 'center',
     alignItems: 'center',
   },

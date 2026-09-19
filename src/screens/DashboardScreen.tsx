@@ -171,7 +171,7 @@ export default function DashboardScreen({
                         }}>
                           <Text style={{ fontSize: 11, fontWeight: '800', color: palette.textSecondary }}>⚠️ Error</Text>
                         </View>
-                      ) : dateStatus?.payment ? (
+                      ) : dateStatus?.payment && dateStatus.payment.status !== 'past_due' ? (
                         <View style={{
                           paddingHorizontal: 5,
                           paddingVertical: 2,
@@ -206,7 +206,7 @@ export default function DashboardScreen({
                     <Text style={styles.fieldLabel}>Amount</Text>
                     <TextInput
                       style={styles.amountInput}
-                      value={paymentAmount || vehicle.driver_payment_amount}
+                      value={paymentAmount}
                       onChangeText={setPaymentAmount}
                       keyboardType="decimal-pad"
                       placeholder="0.00"
@@ -232,7 +232,12 @@ export default function DashboardScreen({
                       </TouchableOpacity>
                     </View>
 
-                    <TouchableOpacity style={[styles.sliderPayBtn, isSubmitting && styles.sliderPayBtnDisabled]} onPress={onPayNow} activeOpacity={0.85} disabled={isSubmitting}>
+                    <TouchableOpacity
+                      style={[styles.sliderPayBtn, isSubmitting || dateStatus?.payment?.status === 'approved' || dateStatus?.payment?.status === 'pending' ? styles.sliderPayBtnDisabled : null]}
+                      onPress={onPayNow}
+                      activeOpacity={0.85}
+                      disabled={isSubmitting || dateStatus?.payment?.status === 'approved' || dateStatus?.payment?.status === 'pending'}
+                    >
                       <Text style={styles.sliderPayBtnText}>{isSubmitting ? 'Submitting...' : 'Pay now'}</Text>
                     </TouchableOpacity>
                   </View>
