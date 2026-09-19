@@ -9,14 +9,16 @@ import DashboardScreen from './src/screens/DashboardScreen';
 import VehiclesScreen from './src/screens/VehiclesScreen';
 import DriversScreen from './src/screens/DriversScreen';
 import PaymentsScreen from './src/screens/PaymentsScreen';
+import AccountScreen from './src/screens/AccountScreen';
 import { palette } from './src/theme/colors';
 import { spacing } from './src/theme/spacing';
 import { radii, shadowPresets } from './src/theme/shape';
+import { getVehicleIcon } from './src/utils/vehicleIcons';
 import * as Keychain from 'react-native-keychain';
 import DocumentPicker from 'react-native-document-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { registerFcmToken, subscribeToForegroundNotifications } from './src/utils/fcmNotifications';
-import SelectSheet from './src/components/common/SelectSheet';
+
 
 const API_URL = 'https://itexphere.com/fleet/public/api';
 //const API_URL = 'http://10.0.2.2:8000/api';
@@ -36,9 +38,11 @@ export default function App() {
   const [paymentDateObj, setPaymentDateObj] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [slipFile, setSlipFile] = useState<any>(null);
-  const [attachmentModalVisible, setAttachmentModalVisible] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState<Toast>(null);
   const toastAnim = useRef(new Animated.Value(0)).current;
+  const [dateStatus, setDateStatus] = useState<any>(null);
+  const [dateStatusLoading, setDateStatusLoading] = useState(false);
 
   const formatDateForDisplay = (date: Date) => {
     const yyyy = date.getFullYear();
@@ -53,10 +57,6 @@ export default function App() {
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const dd = String(date.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
-  };
-
-  const handleSelectFile = () => {
-    setAttachmentModalVisible(true);
   };
 
   const handleAttachmentOption = async (id: string) => {
@@ -175,6 +175,40 @@ export default function App() {
     }
   };
 
+  // ─── Fetch all driver payments once for fast date lookups ─────────────────
+  const [driverPayments, setDriverPayments] = useState<any[]>([]);
+  const [driverPaymentsStatus, setDriverPaymentsStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const fetchDriverPayments = async (token: string) => {
+    setDriverPaymentsStatus('loading');
+    try {
+      const res = await fetch(`${API_URL}/payments`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Fetch failed');
+      const data = await res.json();
+      setDriverPayments(Array.isArray(data) ? data : []);
+      setDriverPaymentsStatus('success');
+    } catch (err) {
+      console.error(err);
+      setDriverPaymentsStatus('error');
+    }
+  };
+
+  useEffect(() => {
+    if (authToken && currentUser?.role === 'driver') {
+      fetchDriverPayments(authToken);
+    }
+  }, [authToken, currentUser]);
+
+  // ─── Per-date payment status (computed locally) ─────────────────────────
+  useEffect(() => {
+    if (paymentDateObj) {
+      const dateStr = formatDateForApi(paymentDateObj);
+      const payment = driverPayments.find(p => p.payment_date === dateStr);
+      setDateStatus({ payment: payment || null });
+    }
+  }, [paymentDateObj, driverPayments]);
+
   // ─── Vehicles ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (authToken && currentUser?.role === 'company' && (screen === 'vehicles' || screen === 'dashboard')) {
@@ -220,6 +254,7 @@ export default function App() {
 
   // ─── Payments ──────────────────────────────────────────────────────────────
   const handlePayNow = async () => {
+    setIsSubmitting(true);
     try {
       const dateOnly = formatDateForApi(paymentDateObj);
 
@@ -248,12 +283,17 @@ export default function App() {
         showToast('✓ Payment Submitted', 'Your payment is pending company approval.');
         setSlipFile(null); // Clear the slip
         checkTodayPaymentStatus(authToken!);
+        if (currentUser?.role === 'driver') {
+          fetchDriverPayments(authToken!);
+        }
       } else {
         const data = await res.json();
         Alert.alert('Error', data.message || 'Failed to make payment');
       }
     } catch {
       Alert.alert('Error', 'Something went wrong.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -318,18 +358,23 @@ export default function App() {
           {screen === 'dashboard' && (
             <DashboardScreen
               vehicleCount={vehicles.length}
+              isVehiclesLoading={vehiclesLoading}
               onLogout={handleLogout}
               user={currentUser}
               paymentDateObj={paymentDateObj}
               setPaymentDateObj={setPaymentDateObj}
               slipFile={slipFile}
-              onSelectFile={handleSelectFile}
+              onAttachmentOption={handleAttachmentOption}
               onPayNow={handlePayNow}
+              isSubmitting={isSubmitting}
               paymentAmount={paymentAmount}
               setPaymentAmount={setPaymentAmount}
               onShowDatePicker={() => setShowDatePicker(true)}
               formatDateForDisplay={formatDateForDisplay}
               todayStatus={todayStatus}
+              dateStatus={dateStatus}
+              dateStatusLoading={driverPaymentsStatus === 'loading'}
+              dateStatusError={driverPaymentsStatus === 'error'}
               onNavigateToVehicles={() => setScreen('vehicles')}
             />
           )}
@@ -338,6 +383,7 @@ export default function App() {
               vehicles={vehicles}
               isLoading={vehiclesLoading}
               onSaveVehicle={handleSaveVehicle}
+              onRefreshVehicles={fetchVehicles}
               token={authToken}
               apiUrl={API_URL}
             />
@@ -359,6 +405,9 @@ export default function App() {
                 setSlipFile(null);
               }}
             />
+          )}
+          {screen === 'account' && (
+            <AccountScreen token={authToken} apiUrl={API_URL} />
           )}
         </View>
 
@@ -388,7 +437,7 @@ export default function App() {
                   accessibilityLabel="Vehicles"
                   accessibilityState={{ selected: screen === 'vehicles' }}
                 >
-                  <Text style={styles.navIcon}>🚛</Text>
+                  <Text style={styles.navIcon}>{getVehicleIcon(undefined)}</Text>
                   <Text style={[styles.navText, screen === 'vehicles' && styles.navTextActive]}>
                     Vehicles
                   </Text>
@@ -424,22 +473,25 @@ export default function App() {
               </Text>
               {screen === 'payments' && <View style={styles.activeIndicator} />}
             </TouchableOpacity>
+
+            {currentUser?.role === 'driver' && (
+              <TouchableOpacity
+                style={[styles.navItem, screen === 'account' && styles.navItemActive]}
+                onPress={() => setScreen('account')}
+                accessibilityRole="button"
+                accessibilityLabel="Account"
+                accessibilityState={{ selected: screen === 'account' }}
+              >
+                <Text style={styles.navIcon}>👤</Text>
+                <Text style={[styles.navText, screen === 'account' && styles.navTextActive]}>
+                  Account
+                </Text>
+                {screen === 'account' && <View style={styles.activeIndicator} />}
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </SafeAreaView>
-
-      <SelectSheet
-        visible={attachmentModalVisible}
-        title="Choose how to add your payment slip"
-        options={[
-          { id: 'camera', label: '📷 Take Photo' },
-          { id: 'gallery', label: '🖼️ Choose from Gallery' },
-          { id: 'pdf', label: '📄 Attach PDF' }
-        ]}
-        selectedId=""
-        onSelect={handleAttachmentOption}
-        onClose={() => setAttachmentModalVisible(false)}
-      />
     </SafeAreaProvider>
   );
 }

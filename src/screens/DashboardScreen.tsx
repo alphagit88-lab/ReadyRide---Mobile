@@ -1,33 +1,44 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, StatusBar, ActivityIndicator } from 'react-native';
 import { palette } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { radii, shadowPresets } from '../theme/shape';
+import { getVehicleIcon } from '../utils/vehicleIcons';
 
 export default function DashboardScreen({
   vehicleCount,
+  isVehiclesLoading,
   onLogout,
   user,
   paymentDateObj,
   setPaymentDateObj,
   slipFile,
-  onSelectFile,
+  onAttachmentOption,
   onPayNow,
+  isSubmitting,
   paymentAmount,
   setPaymentAmount,
   onShowDatePicker,
   formatDateForDisplay,
   todayStatus,
   onNavigateToVehicles,
+  dateStatus,
+  dateStatusLoading,
+  dateStatusError,
 }: {
   vehicleCount: number;
+  isVehiclesLoading?: boolean;
+  dateStatus?: any;
+  dateStatusLoading?: boolean;
+  dateStatusError?: boolean;
   onLogout: () => void;
   user: any;
   paymentDateObj?: Date;
   setPaymentDateObj?: (date: Date) => void;
   slipFile?: any;
-  onSelectFile?: () => void;
+  onAttachmentOption?: (id: string) => void;
   onPayNow?: () => void;
+  isSubmitting?: boolean;
   paymentAmount?: string;
   setPaymentAmount?: (amount: string) => void;
   onShowDatePicker?: () => void;
@@ -95,7 +106,7 @@ export default function DashboardScreen({
                 <Text style={styles.inlineAmount}>Daily: Rs. {parseFloat(vehicle.driver_payment_amount || '0').toFixed(2)}</Text>
                 <View style={[styles.heroStatusChip, hasPaidToday ? styles.heroStatusPaid : styles.heroStatusPending]}>
                   <Text style={styles.heroStatusChipText}>
-                    {todayStatus ? (hasPaidToday ? 'Paid today' : 'Pending today') : 'Unknown'}
+                    {todayStatus ? (hasPaidToday ? (todayStatus.payment?.status === 'approved' ? 'Paid today' : 'Pending approval') : 'Unpaid today') : 'Unknown'}
                   </Text>
                 </View>
               </>
@@ -118,7 +129,11 @@ export default function DashboardScreen({
               </View>
               <View style={styles.statsCopy}>
                 <Text style={styles.statsLabel}>Total vehicles</Text>
-                <Text style={styles.statsValue}>{vehicleCount}</Text>
+                {isVehiclesLoading ? (
+                  <ActivityIndicator size="large" color={palette.primary} style={{ alignSelf: 'flex-start', marginVertical: 4 }} />
+                ) : (
+                  <Text style={styles.statsValue}>{vehicleCount}</Text>
+                )}
                 <Text style={styles.statsHint}>Open Vehicles in the tab below to manage your fleet.</Text>
               </View>
             </TouchableOpacity>
@@ -141,7 +156,47 @@ export default function DashboardScreen({
                   </TouchableOpacity>
 
                   <View style={styles.sliderCenter}>
-                    <Text style={styles.fieldLabel}>Payment date</Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={styles.fieldLabel}>Payment date</Text>
+                      {dateStatusLoading ? (
+                        <ActivityIndicator size="small" color={palette.primary} />
+                      ) : dateStatusError ? (
+                        <View style={{
+                          paddingHorizontal: 5,
+                          paddingVertical: 2,
+                          borderWidth: 1,
+                          borderColor: palette.border,
+                          borderRadius: 4,
+                          backgroundColor: palette.surface,
+                        }}>
+                          <Text style={{ fontSize: 11, fontWeight: '800', color: palette.textSecondary }}>⚠️ Error</Text>
+                        </View>
+                      ) : dateStatus?.payment ? (
+                        <View style={{
+                          paddingHorizontal: 5,
+                          paddingVertical: 2,
+                          borderWidth: 1,
+                          borderColor: dateStatus.payment.status === 'approved' ? palette.success : palette.warning,
+                          borderRadius: 4,
+                          backgroundColor: dateStatus.payment.status === 'approved' ? `${palette.success}1A` : `${palette.warning}1A`,
+                        }}>
+                          <Text style={{ fontSize: 11, fontWeight: '800', color: dateStatus.payment.status === 'approved' ? palette.success : palette.warning }}>
+                            {dateStatus.payment.status === 'approved' ? '✓ Paid' : '⏳ Pending'}
+                          </Text>
+                        </View>
+                      ) : (
+                        <View style={{
+                          paddingHorizontal: 5,
+                          paddingVertical: 2,
+                          borderWidth: 1,
+                          borderColor: palette.danger,
+                          borderRadius: 4,
+                          backgroundColor: `${palette.danger}1A`,
+                        }}>
+                          <Text style={{ fontSize: 11, fontWeight: '800', color: palette.danger }}>✕ Unpaid</Text>
+                        </View>
+                      )}
+                    </View>
                     <TouchableOpacity onPress={onShowDatePicker} style={styles.sliderDateBtn} activeOpacity={0.85}>
                       <Text style={styles.sliderDateText}>
                         {paymentDateObj && formatDateForDisplay ? formatDateForDisplay(paymentDateObj) : ''}
@@ -160,15 +215,25 @@ export default function DashboardScreen({
                     />
 
                     <Text style={styles.fieldLabel}>Payment slip</Text>
-                    <TouchableOpacity style={styles.sliderAttachBtn} onPress={onSelectFile} activeOpacity={0.85}>
-                      <Text style={styles.sliderAttachIcon}>📎</Text>
-                      <Text style={styles.sliderAttachText} numberOfLines={1}>
-                        {slipFile ? slipFile.name : 'Attach slip (image or PDF)'}
+                    {slipFile && (
+                      <Text style={styles.slipFileText} numberOfLines={1}>
+                        {slipFile.name}
                       </Text>
-                    </TouchableOpacity>
+                    )}
+                    <View style={styles.attachmentIconsRow}>
+                      <TouchableOpacity style={styles.attachmentIconButton} onPress={() => onAttachmentOption?.('camera')} activeOpacity={0.85}>
+                        <Text style={styles.attachmentIcon}>📷</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.attachmentIconButton} onPress={() => onAttachmentOption?.('gallery')} activeOpacity={0.85}>
+                        <Text style={styles.attachmentIcon}>🖼️</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.attachmentIconButton} onPress={() => onAttachmentOption?.('pdf')} activeOpacity={0.85}>
+                        <Text style={styles.attachmentIcon}>📄</Text>
+                      </TouchableOpacity>
+                    </View>
 
-                    <TouchableOpacity style={styles.sliderPayBtn} onPress={onPayNow} activeOpacity={0.85}>
-                      <Text style={styles.sliderPayBtnText}>Pay now</Text>
+                    <TouchableOpacity style={[styles.sliderPayBtn, isSubmitting && styles.sliderPayBtnDisabled]} onPress={onPayNow} activeOpacity={0.85} disabled={isSubmitting}>
+                      <Text style={styles.sliderPayBtnText}>{isSubmitting ? 'Submitting...' : 'Pay now'}</Text>
                     </TouchableOpacity>
                   </View>
 
@@ -527,8 +592,13 @@ const styles = StyleSheet.create({
     color: palette.textPrimary,
     textAlign: 'center',
   },
-  sliderAttachBtn: {
+  attachmentIconsRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  attachmentIconButton: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: palette.gray50,
@@ -537,18 +607,19 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     borderRadius: radii.lg,
     paddingVertical: 10,
-    paddingHorizontal: spacing.md,
     minHeight: 44,
   },
-  sliderAttachIcon: {
-    fontSize: 14,
-    marginRight: 6,
+  attachmentIcon: {
+    fontSize: 18,
   },
-  sliderAttachText: {
+  slipFileText: {
     fontSize: 13,
     color: palette.textSecondary,
     fontWeight: '700',
-    flexShrink: 1,
+    marginBottom: spacing.xs,
+  },
+  sliderPayBtnDisabled: {
+    opacity: 0.5,
   },
   sliderPayBtn: {
     backgroundColor: palette.textPrimary, // Ultra dark button

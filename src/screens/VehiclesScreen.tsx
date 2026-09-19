@@ -1,22 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Modal, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { palette } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { radii } from '../theme/shape';
 import ScreenHeader from '../components/common/ScreenHeader';
 import EmptyState from '../components/common/EmptyState';
+import { getVehicleIcon } from '../utils/vehicleIcons';
 import SelectSheet from '../components/common/SelectSheet';
 
 export default function VehiclesScreen({ 
   vehicles, 
   isLoading,
   onSaveVehicle,
+  onRefreshVehicles,
   token,
   apiUrl
 }: { 
   vehicles: any[], 
   isLoading?: boolean,
   onSaveVehicle: (vehicle: any) => Promise<void>,
+  onRefreshVehicles?: () => void,
   token: string | null,
   apiUrl: string
 }) {
@@ -25,6 +28,7 @@ export default function VehiclesScreen({
   const [editVehicle, setEditVehicle] = useState<any>(null);
   const [vName, setVName] = useState('');
   const [vPlate, setVPlate] = useState('');
+  const [vType, setVType] = useState('bike');
   const [vDriverId, setVDriverId] = useState('');
   const [vPaymentAmount, setVPaymentAmount] = useState('');
   const [drivers, setDrivers] = useState<any[]>([]);
@@ -53,6 +57,7 @@ export default function VehiclesScreen({
     setEditVehicle(null);
     setVName('');
     setVPlate('');
+    setVType('bike');
     setVDriverId('');
     setVPaymentAmount('');
     setModalVisible(true);
@@ -62,18 +67,46 @@ export default function VehiclesScreen({
     setEditVehicle(vehicle);
     setVName(vehicle.name);
     setVPlate(vehicle.license_plate);
+    setVType(vehicle.vehicle_type || 'bike');
     setVDriverId(vehicle.driver_id ? vehicle.driver_id.toString() : '');
     setVPaymentAmount(vehicle.driver_payment_amount ? vehicle.driver_payment_amount.toString() : '');
     setModalVisible(true);
   };
 
   const handleSave = async () => {
-    const data: any = { id: editVehicle?.id, name: vName, license_plate: vPlate };
+    const data: any = { id: editVehicle?.id, name: vName, license_plate: vPlate, vehicle_type: vType };
     if (vDriverId) data.driver_id = vDriverId;
     if (vPaymentAmount) data.driver_payment_amount = vPaymentAmount;
 
     await onSaveVehicle(data);
     setModalVisible(false);
+  };
+  
+  const handleDeleteVehicle = (vehicle: any) => {
+    Alert.alert('Delete Vehicle', `Are you sure you want to delete ${vehicle.name}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const res = await fetch(`${apiUrl}/vehicles/${vehicle.id}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) {
+              const resData = await res.json();
+              throw new Error(resData.message || 'Failed to delete vehicle');
+            }
+            if (onRefreshVehicles) {
+              onRefreshVehicles();
+            }
+          } catch (err: any) {
+            Alert.alert('Error', err.message);
+          }
+        }
+      }
+    ]);
   };
   
   const getSelectedDriverName = () => {
@@ -119,8 +152,8 @@ export default function VehiclesScreen({
           }
           renderItem={({ item }) => (
             <View style={styles.card}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{(item.name || 'V').charAt(0).toUpperCase()}</Text>
+              <View style={[styles.avatar, { backgroundColor: palette.gray100 }]}>
+                <Text style={{ fontSize: 22 }}>{getVehicleIcon(item.vehicle_type)}</Text>
               </View>
               <View style={styles.cardInfo}>
                 <Text style={styles.cardTitle}>{item.name}</Text>
@@ -130,9 +163,14 @@ export default function VehiclesScreen({
                 <Text style={styles.cardSub}>Driver: {getDriverName(item.driver_id)}</Text>
                 <Text style={styles.cardSub}>Daily payment: Rs. {item.driver_payment_amount || '0.00'}</Text>
               </View>
-              <TouchableOpacity style={styles.editButton} onPress={() => openEdit(item)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={`Edit ${item.name}`}>
-                <Text style={styles.editButtonText}>Edit</Text>
-              </TouchableOpacity>
+              <View style={styles.actionRow}>
+                <TouchableOpacity style={[styles.actionButton, styles.editBtn]} onPress={() => openEdit(item)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={`Edit ${item.name}`}>
+                  <Text style={styles.actionIcon}>✏️</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.actionButton, styles.deleteBtn]} onPress={() => handleDeleteVehicle(item)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={`Delete ${item.name}`}>
+                  <Text style={styles.actionIcon}>🗑️</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         />
@@ -165,6 +203,24 @@ export default function VehiclesScreen({
             
             <Text style={styles.label}>License plate</Text>
             <TextInput style={styles.input} placeholder="e.g. ABC-123" placeholderTextColor={palette.textMuted} value={vPlate} onChangeText={setVPlate} autoCapitalize="characters" />
+
+            <Text style={styles.label}>Vehicle type</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.lg }}>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {['bike', 'car', 'threewheeler', 'van', 'other'].map(type => (
+                  <TouchableOpacity
+                    key={type}
+                    style={[styles.typePill, vType === type && styles.typePillActive]}
+                    onPress={() => setVType(type)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={[styles.typePillText, vType === type && styles.typePillTextActive]}>
+                      {type === 'threewheeler' ? 'Three-Wheeler' : type.charAt(0).toUpperCase() + type.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
             
             <Text style={styles.label}>Assign driver</Text>
             <TouchableOpacity style={styles.dropdownButton} onPress={() => setDriverModalVisible(true)}>
@@ -220,8 +276,16 @@ const styles = StyleSheet.create({
   pill: { backgroundColor: palette.gray100, alignSelf: 'flex-start', paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radii.sm, borderWidth: 1, borderColor: palette.gray200 },
   pillText: { fontSize: 12, fontWeight: '700', color: palette.gray700, letterSpacing: 0.3 },
 
-  editButton: { backgroundColor: palette.surface, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radii.pill, borderWidth: 2, borderColor: palette.border },
-  editButtonText: { color: palette.primaryStrong, fontSize: 14, fontWeight: '800' },
+  typePill: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radii.pill, borderWidth: 1.5, borderColor: palette.border, backgroundColor: palette.surface },
+  typePillActive: { backgroundColor: palette.textPrimary, borderColor: palette.textPrimary },
+  typePillText: { fontSize: 13, fontWeight: '700', color: palette.textSecondary },
+  typePillTextActive: { color: palette.primary },
+
+  actionRow: { flexDirection: 'row', gap: 6 },
+  actionButton: { width: 34, height: 34, borderRadius: radii.md, borderWidth: 1.5, justifyContent: 'center', alignItems: 'center' },
+  editBtn: { backgroundColor: palette.info + '15', borderColor: palette.info + '30' },
+  deleteBtn: { backgroundColor: palette.danger + '15', borderColor: palette.danger + '30' },
+  actionIcon: { fontSize: 14 },
 
   modalOverlay: { flex: 1, justifyContent: 'center', backgroundColor: `${palette.textPrimary}70`, padding: spacing.lg },
   modalContent: { backgroundColor: palette.surface, padding: spacing.xl, borderRadius: radii.xl, borderWidth: 1.5, borderColor: palette.border, ...require('../theme/shape').shadowPresets.card },

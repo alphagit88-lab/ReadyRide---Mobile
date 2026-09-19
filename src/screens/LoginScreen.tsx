@@ -211,7 +211,7 @@ export default function LoginScreen({
           {/* ── Form card ── */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Welcome back</Text>
-            <Text style={styles.cardSub}>Sign in to manage your fleet.</Text>
+            <Text style={styles.cardSub}>Sign in to access your account.</Text>
 
             <View style={styles.formSection}>
               <FancyInput
@@ -271,13 +271,12 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   heroInner: { alignItems: 'center', zIndex: 2 },
-  logoWrap: { position: 'relative', marginBottom: spacing.md }, // reduced from xl
+  logoWrap: { position: 'relative', marginBottom: spacing.md, borderRadius: radii.lg, ...shadowPresets.card }, // reduced from xl
   logo: {
     width: 64, // reduced from 88
     height: 64, // reduced from 88
     borderRadius: radii.lg,
     borderWidth: 0,
-    ...shadowPresets.card,
   },
   logoBadge: {
     position: 'absolute',
