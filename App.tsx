@@ -10,6 +10,8 @@ import VehiclesScreen from './src/screens/VehiclesScreen';
 import DriversScreen from './src/screens/DriversScreen';
 import PaymentsScreen from './src/screens/PaymentsScreen';
 import AccountScreen from './src/screens/AccountScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
+import ConditionsScreen from './src/screens/ConditionsScreen';
 import { palette } from './src/theme/colors';
 import { spacing } from './src/theme/spacing';
 import { radii, shadowPresets } from './src/theme/shape';
@@ -413,6 +415,12 @@ export default function App() {
           {screen === 'account' && (
             <AccountScreen token={authToken} apiUrl={API_URL} />
           )}
+          {screen === 'settings' && (
+            <SettingsScreen token={authToken} apiUrl={API_URL} />
+          )}
+          {screen === 'conditions' && (
+            <ConditionsScreen token={authToken} apiUrl={API_URL} />
+          )}
         </View>
 
         {/* ─── Bottom Nav ─── */}
@@ -479,20 +487,36 @@ export default function App() {
             </TouchableOpacity>
 
             {currentUser?.role === 'driver' && (
-              <TouchableOpacity
-                style={[styles.navItem, screen === 'account' && styles.navItemActive]}
-                onPress={() => setScreen('account')}
-                accessibilityRole="button"
-                accessibilityLabel="Account"
-                accessibilityState={{ selected: screen === 'account' }}
-              >
-                <Text style={styles.navIcon}>👤</Text>
-                <Text style={[styles.navText, screen === 'account' && styles.navTextActive]}>
-                  Account
-                </Text>
-                {screen === 'account' && <View style={styles.activeIndicator} />}
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity
+                  style={[styles.navItem, screen === 'account' && styles.navItemActive]}
+                  onPress={() => setScreen('account')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Account"
+                  accessibilityState={{ selected: screen === 'account' }}
+                >
+                  <Text style={styles.navIcon}>👤</Text>
+                  <Text style={[styles.navText, screen === 'account' && styles.navTextActive]}>
+                    Account
+                  </Text>
+                  {screen === 'account' && <View style={styles.activeIndicator} />}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.navItem, screen === 'conditions' && styles.navItemActive]}
+                  onPress={() => setScreen('conditions')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Conditions"
+                  accessibilityState={{ selected: screen === 'conditions' }}
+                >
+                  <Text style={styles.navIcon}>📋</Text>
+                  <Text style={[styles.navText, screen === 'conditions' && styles.navTextActive]}>
+                    Conditions
+                  </Text>
+                  {screen === 'conditions' && <View style={styles.activeIndicator} />}
+                </TouchableOpacity>
+              </>
             )}
+
           </View>
         </View>
       </SafeAreaView>

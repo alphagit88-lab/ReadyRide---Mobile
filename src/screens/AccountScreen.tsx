@@ -25,7 +25,7 @@ export default function AccountScreen({ token, apiUrl }: { token: string | null,
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDocUrl, setSelectedDocUrl] = useState<string | null>(null);
   const [loadingDocIndex, setLoadingDocIndex] = useState<number | null>(null);
-
+  const [activeTab, setActiveTab] = useState<'basic' | 'documents'>('basic');
   useEffect(() => {
     if (token) fetchProfile();
   }, [token]);
@@ -115,89 +115,137 @@ export default function AccountScreen({ token, apiUrl }: { token: string | null,
                 <Text style={styles.pillText}>{profile.email}</Text>
               </View>
 
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Account Type</Text>
-                <Text style={styles.infoValue}>{profile.role === 'company' ? 'Company Admin' : 'Driver'}</Text>
+              <View style={[styles.tabContainer, { width: '100%', marginTop: spacing.md }]}>
+                <TouchableOpacity style={[styles.tabBtn, activeTab === 'basic' && styles.tabBtnActive]} onPress={() => setActiveTab('basic')}>
+                  <Text style={[styles.tabText, activeTab === 'basic' && styles.tabTextActive]}>Basic Info</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.tabBtn, activeTab === 'documents' && styles.tabBtnActive]} onPress={() => setActiveTab('documents')}>
+                  <Text style={[styles.tabText, activeTab === 'documents' && styles.tabTextActive]}>Documents</Text>
+                </TouchableOpacity>
               </View>
-              {profile.start_date && (
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Start Date</Text>
-                  <Text style={styles.infoValue}>{profile.start_date}</Text>
-                </View>
-              )}
-              {profile.payment_time && (
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Payment Time</Text>
-                  <Text style={[styles.infoValue, { textTransform: 'uppercase' }]}>{formatTime(profile.payment_time)}</Text>
-                </View>
-              )}
-              {profile.documents && profile.documents.length > 0 && (() => {
-                const orderedKeys = ['driving_license', 'nic', 'police_verification', 'proof_of_address', 'passport_photo_1', 'passport_photo_2', 'guarantor_declaration', 'guarantor_nic', 'guarantor_proof_of_address'];
-                const sortedDocs = [...profile.documents].sort((a: any, b: any) => orderedKeys.indexOf(a.document_type) - orderedKeys.indexOf(b.document_type));
-                return sortedDocs.map((doc: any, i: number) => {
-                  const label = doc.document_type.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-                  const fullUrl = apiUrl.replace('/api', '') + '/storage/' + doc.file_path;
-                  return (
-                    <View key={i} style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>{label}</Text>
-                      <TouchableOpacity
-                        onPress={async () => {
-                          setLoadingDocIndex(i);
-                          if (fullUrl.toLowerCase().endsWith('.pdf')) {
-                            await Linking.openURL(fullUrl);
-                            setLoadingDocIndex(null);
-                          } else {
-                            await Image.prefetch(fullUrl).catch(() => {});
-                            setSelectedDocUrl(fullUrl);
-                            setLoadingDocIndex(null);
-                          }
-                        }}
-                      >
-                        {loadingDocIndex === i ? (
-                          <ActivityIndicator size="small" color={palette.primaryStrong} />
-                        ) : (
-                          <Text style={[styles.infoValue, { color: palette.primaryStrong }]}>View</Text>
-                        )}
-                      </TouchableOpacity>
+
+              {activeTab === 'basic' ? (
+                <>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Account Type</Text>
+                    <Text style={styles.infoValue}>{profile.role === 'company' ? 'Company Admin' : 'Driver'}</Text>
+                  </View>
+                  {profile.start_date && (
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Start Date</Text>
+                      <Text style={styles.infoValue}>{profile.start_date}</Text>
                     </View>
-                  );
-                });
-              })()}
+                  )}
+                  {profile.payment_time && (
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Payment Time</Text>
+                      <Text style={[styles.infoValue, { textTransform: 'uppercase' }]}>{formatTime(profile.payment_time)}</Text>
+                    </View>
+                  )}
+                </>
+              ) : (
+                <View style={{ width: '100%' }}>
+                  {(() => {
+                    const renderDocs = (keys: string[], title: string) => {
+                      const docs = (profile.documents || []).filter((d: any) => keys.includes(d.document_type));
+                      if (docs.length === 0) return null;
+                      const sortedDocs = [...docs].sort((a: any, b: any) => keys.indexOf(a.document_type) - keys.indexOf(b.document_type));
+                      
+                      return (
+                        <View style={{ marginBottom: spacing.lg }}>
+                          <Text style={[styles.infoLabel, { marginBottom: spacing.sm, marginLeft: 4 }]}>{title}</Text>
+                          <View style={{ backgroundColor: palette.gray50, borderRadius: radii.md, borderWidth: 1, borderColor: palette.border, padding: spacing.sm }}>
+                            {sortedDocs.map((doc: any, i: number) => {
+                              const label = doc.document_type.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+                              const fullUrl = apiUrl.replace('/api', '') + '/storage/' + doc.file_path;
+                              return (
+                                <View key={i} style={[styles.infoRow, i === 0 && { borderTopWidth: 0, paddingTop: 0 }, i === sortedDocs.length - 1 && { paddingBottom: 0 }]}>
+                                  <Text style={styles.infoLabel}>{label}</Text>
+                                  <TouchableOpacity
+                                    onPress={async () => {
+                                      setLoadingDocIndex(i);
+                                      if (fullUrl.toLowerCase().endsWith('.pdf')) {
+                                        await Linking.openURL(fullUrl);
+                                        setLoadingDocIndex(null);
+                                      } else {
+                                        await Image.prefetch(fullUrl).catch(() => {});
+                                        setSelectedDocUrl(fullUrl);
+                                        setLoadingDocIndex(null);
+                                      }
+                                    }}
+                                  >
+                                    {loadingDocIndex === i ? (
+                                      <ActivityIndicator size="small" color={palette.primaryStrong} />
+                                    ) : (
+                                      <Text style={[styles.infoValue, { color: palette.primaryStrong }]}>View</Text>
+                                    )}
+                                  </TouchableOpacity>
+                                </View>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      );
+                    };
+
+                    const DRIVER_KEYS = ['driving_license', 'nic', 'police_verification', 'proof_of_address', 'passport_photo_1', 'passport_photo_2'];
+                    const GUARANTOR_KEYS = ['guarantor_declaration', 'guarantor_nic', 'guarantor_proof_of_address'];
+
+                    const driverContent = renderDocs(DRIVER_KEYS, 'Driver Documents');
+                    const guarantorContent = renderDocs(GUARANTOR_KEYS, 'Guarantor Documents');
+
+                    if (!driverContent && !guarantorContent) {
+                      return <Text style={{ color: palette.textMuted, textAlign: 'center', marginVertical: spacing.lg }}>No documents uploaded.</Text>;
+                    }
+
+                    return (
+                      <>
+                        {driverContent}
+                        {guarantorContent}
+                      </>
+                    );
+                  })()}
+                </View>
+              )}
             </View>
 
-            <Text style={styles.sectionTitle}>Change Password</Text>
-          <View style={styles.formCard}>
-            <Text style={styles.label}>New Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter new password"
-              placeholderTextColor={palette.textMuted}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+            {activeTab === 'basic' && (
+              <>
+                <Text style={styles.sectionTitle}>Change Password</Text>
+                <View style={styles.formCard}>
+                  <Text style={styles.label}>New Password</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter new password"
+                    placeholderTextColor={palette.textMuted}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry
+                  />
 
-            <Text style={styles.label}>Confirm New Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Confirm new password"
-              placeholderTextColor={palette.textMuted}
-              value={passwordConfirmation}
-              onChangeText={setPasswordConfirmation}
-              secureTextEntry
-            />
+                  <Text style={styles.label}>Confirm New Password</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Confirm new password"
+                    placeholderTextColor={palette.textMuted}
+                    value={passwordConfirmation}
+                    onChangeText={setPasswordConfirmation}
+                    secureTextEntry
+                  />
 
-            <TouchableOpacity
-              style={[styles.saveButton, isSaving && { opacity: 0.7 }]}
-              onPress={handleUpdatePassword}
-              disabled={isSaving}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.saveButtonText}>
-                {isSaving ? 'Updating...' : 'Update Password'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+                  <TouchableOpacity
+                    style={[styles.saveButton, isSaving && { opacity: 0.7 }]}
+                    onPress={handleUpdatePassword}
+                    disabled={isSaving}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.saveButtonText}>
+                      {isSaving ? 'Updating...' : 'Update Password'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
             </>
           ) : null}
         </ScrollView>
@@ -245,4 +293,9 @@ const styles = StyleSheet.create({
   input: { backgroundColor: palette.gray50, borderWidth: 1.5, borderColor: palette.border, borderRadius: radii.md, padding: spacing.md, fontSize: 16, fontWeight: '500', color: palette.textPrimary, marginBottom: spacing.lg },
   saveButton: { backgroundColor: palette.primary, padding: spacing.md, alignItems: 'center', justifyContent: 'center', minHeight: 52, borderRadius: radii.md, marginTop: spacing.sm },
   saveButtonText: { color: palette.textPrimary, fontSize: 15, fontWeight: '800' },
+  tabContainer: { flexDirection: 'row', backgroundColor: palette.gray100, borderRadius: radii.pill, padding: 4, marginBottom: spacing.xl, borderWidth: 1, borderColor: palette.gray200 },
+  tabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: radii.pill },
+  tabBtnActive: { backgroundColor: palette.surface, ...require('../theme/shape').shadowPresets.sm },
+  tabText: { fontSize: 14, fontWeight: '700', color: palette.textSecondary },
+  tabTextActive: { color: palette.textPrimary, fontWeight: '800' },
 });

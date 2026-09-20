@@ -42,7 +42,8 @@ export default function DriversScreen({ token, apiUrl }: { token: string | null,
   const [docFiles, setDocFiles] = useState<Record<string, any>>({});
   const [newDriverId, setNewDriverId] = useState<number | null>(null);
   const [selectedDocUrl, setSelectedDocUrl] = useState<string | null>(null);
-  const [loadingDocIndex, setLoadingDocIndex] = useState<number | null>(null);
+  const [loadingDocKey, setLoadingDocKey] = useState<string | null>(null);
+  const [docUploadStatus, setDocUploadStatus] = useState<Record<string, 'uploading' | 'done' | 'error'>>({});
 
   useEffect(() => {
     if (token) fetchDrivers();
@@ -145,6 +146,7 @@ export default function DriversScreen({ token, apiUrl }: { token: string | null,
 
       // 2. Upload documents one by one to avoid corruption/timeout
       for (const [docKey, file] of entries) {
+        setDocUploadStatus(prev => ({ ...prev, [docKey]: 'uploading' }));
         const formData = new FormData();
         formData.append(`documents[0][type]`, docKey);
         formData.append(`documents[0][file]`, { uri: file.uri, name: file.name, type: file.type || 'application/octet-stream' } as any);
@@ -155,11 +157,16 @@ export default function DriversScreen({ token, apiUrl }: { token: string | null,
           body: formData,
         });
 
-        if (!docRes.ok) {
+        if (docRes.ok) {
+          setDocUploadStatus(prev => ({ ...prev, [docKey]: 'done' }));
+        } else {
+          setDocUploadStatus(prev => ({ ...prev, [docKey]: 'error' }));
           console.warn(`Failed to upload ${docKey}`);
         }
       }
 
+      await new Promise<void>(resolve => setTimeout(() => resolve(), 600));
+      setDocUploadStatus({});
       setModalVisible(false);
       fetchDrivers();
     } catch (err: any) {
@@ -187,10 +194,55 @@ export default function DriversScreen({ token, apiUrl }: { token: string | null,
 
   const DocUploadRow = ({ docKey, label }: { docKey: string; label: string }) => {
     const file = docFiles[docKey];
+    const existingDoc = editDriver?.documents?.find((d: any) => d.document_type === docKey);
+    const existingDocUrl = existingDoc ? apiUrl.replace('/api', '') + '/storage/' + existingDoc.file_path : null;
+
     return (
       <View style={styles.docRow}>
-        <Text style={[styles.docLabel, file && { color: palette.primaryStrong }]}>{file ? '✅ ' : ''}{label}</Text>
-        {file && <Text style={styles.docFileName} numberOfLines={1}>{file.name}</Text>}
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={[styles.docLabel, { flex: 1, marginRight: 8 }, (file || existingDoc) && { color: palette.primaryStrong, marginBottom: 0 }]} numberOfLines={1}>
+            {(file || existingDoc) ? '✅ ' : ''}{label}
+          </Text>
+          {!file && existingDoc && (
+            <TouchableOpacity 
+              style={{ marginLeft: 8, paddingVertical: 4, paddingHorizontal: 8 }} 
+              onPress={async () => {
+                if (!existingDocUrl) return;
+                setLoadingDocKey(docKey);
+                if (existingDocUrl.toLowerCase().endsWith('.pdf')) {
+                  await Linking.openURL(existingDocUrl);
+                  setLoadingDocKey(null);
+                } else {
+                  await Image.prefetch(existingDocUrl).catch(() => {});
+                  setSelectedDocUrl(existingDocUrl);
+                  setLoadingDocKey(null);
+                }
+              }}
+            >
+              {loadingDocKey === docKey ? (
+                <ActivityIndicator size="small" color={palette.primaryStrong} />
+              ) : (
+                <Text style={{ fontSize: 13, fontWeight: '800', color: palette.primaryStrong }}>View</Text>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+        {file && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginHorizontal: 4 }}>
+            <Text style={[styles.docFileName, { flex: 1 }]} numberOfLines={1}>
+              {file.name.length > 20 ? file.name.substring(0, 20) + '...' : file.name}
+            </Text>
+            {docUploadStatus[docKey] === 'uploading' && (
+              <ActivityIndicator size="small" color={palette.primaryStrong} style={{ marginLeft: 4 }} />
+            )}
+            {docUploadStatus[docKey] === 'done' && (
+              <Text style={{ marginLeft: 4, fontSize: 14, color: '#22c55e' }}>✓</Text>
+            )}
+            {docUploadStatus[docKey] === 'error' && (
+              <Text style={{ marginLeft: 4, fontSize: 14, color: '#ef4444' }}>✗</Text>
+            )}
+          </View>
+        )}
         <View style={styles.docIconRow}>
           <TouchableOpacity style={[styles.docIconBtn, isUploading && { opacity: 0.5 }]} onPress={() => pickDoc(docKey, 'camera')} activeOpacity={0.8} disabled={isUploading}>
             <Text style={styles.docIcon}>📷</Text>
@@ -267,10 +319,10 @@ export default function DriversScreen({ token, apiUrl }: { token: string | null,
               <Text style={styles.modalHint}>Enter details and upload required documents.</Text>
 
               <View style={styles.tabContainer}>
-                <TouchableOpacity style={[styles.tabBtn, activeTab === 'basic' && styles.tabBtnActive]} onPress={() => setActiveTab('basic')}>
+                <TouchableOpacity style={[styles.tabBtn, activeTab === 'basic' && styles.tabBtnActive, isUploading && { opacity: 0.5 }]} onPress={() => setActiveTab('basic')} disabled={isUploading}>
                   <Text style={[styles.tabText, activeTab === 'basic' && styles.tabTextActive]}>Basic Info</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.tabBtn, activeTab === 'documents' && styles.tabBtnActive]} onPress={() => setActiveTab('documents')}>
+                <TouchableOpacity style={[styles.tabBtn, activeTab === 'documents' && styles.tabBtnActive, isUploading && { opacity: 0.5 }]} onPress={() => setActiveTab('documents')} disabled={isUploading}>
                   <Text style={[styles.tabText, activeTab === 'documents' && styles.tabTextActive]}>Documents</Text>
                 </TouchableOpacity>
               </View>
@@ -304,47 +356,6 @@ export default function DriversScreen({ token, apiUrl }: { token: string | null,
                   {showTimePicker && (
                     <DateTimePicker value={paymentTime || new Date()} mode="time" is24Hour={false} display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                       onChange={(_, d) => { setShowTimePicker(false); if (d) setPaymentTime(d); }} />
-                  )}
-
-                  {editDriver?.documents && editDriver.documents.length > 0 && (
-                    <View style={{ marginTop: spacing.lg }}>
-                      <Text style={styles.sectionHeader}>Uploaded Documents</Text>
-                      {(() => {
-                        const orderedKeys = [...DRIVER_DOCS, ...GUARANTOR_DOCS].map(d => d.key);
-                        const sortedDocs = [...editDriver.documents].sort((a: any, b: any) => orderedKeys.indexOf(a.document_type) - orderedKeys.indexOf(b.document_type));
-                        const allDocsMap = Object.fromEntries([...DRIVER_DOCS, ...GUARANTOR_DOCS].map(d => [d.key, d.label]));
-
-                        return sortedDocs.map((doc: any, i: number) => {
-                          const label = allDocsMap[doc.document_type] || doc.document_type;
-                          const fullUrl = apiUrl.replace('/api', '') + '/storage/' + doc.file_path;
-                          return (
-                            <View key={i} style={styles.uploadedDocRow}>
-                              <Text style={[styles.docLabel, { flex: 1, marginBottom: 0 }]} numberOfLines={1}>{label}</Text>
-                              <TouchableOpacity 
-                                style={{ minWidth: 60, alignItems: 'flex-end', paddingVertical: 4 }} 
-                                onPress={async () => {
-                                  setLoadingDocIndex(i);
-                                  if (fullUrl.toLowerCase().endsWith('.pdf')) {
-                                    await Linking.openURL(fullUrl);
-                                    setLoadingDocIndex(null);
-                                  } else {
-                                    await Image.prefetch(fullUrl).catch(() => {});
-                                    setSelectedDocUrl(fullUrl);
-                                    setLoadingDocIndex(null);
-                                  }
-                                }}
-                              >
-                                {loadingDocIndex === i ? (
-                                  <ActivityIndicator size="small" color={palette.primaryStrong} />
-                                ) : (
-                                  <Text style={{ fontSize: 13, fontWeight: '800', color: palette.primaryStrong }}>View</Text>
-                                )}
-                              </TouchableOpacity>
-                            </View>
-                          );
-                        });
-                      })()}
-                    </View>
                   )}
                 </>
               ) : (
