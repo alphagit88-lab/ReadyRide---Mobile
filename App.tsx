@@ -20,6 +20,7 @@ import * as Keychain from 'react-native-keychain';
 import DocumentPicker from 'react-native-document-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { registerFcmToken, subscribeToForegroundNotifications } from './src/utils/fcmNotifications';
+import VersionBlocker from './src/components/common/VersionBlocker';
 
 
 const API_URL = 'https://itexphere.com/fleet/public/api';
@@ -304,7 +305,8 @@ export default function App() {
   };
 
   // ─── Screens ───────────────────────────────────────────────────────────────
-  if (isInitializing) {
+  const renderContent = () => {
+    if (isInitializing) {
     return (
       <View style={[styles.appContainer, { justifyContent: 'center', alignItems: 'center' }]}>
         <StatusBar barStyle="dark-content" backgroundColor={palette.background} />
@@ -521,6 +523,13 @@ export default function App() {
         </View>
       </SafeAreaView>
     </SafeAreaProvider>
+  );
+  };
+
+  return (
+    <VersionBlocker>
+      {renderContent()}
+    </VersionBlocker>
   );
 }
 
