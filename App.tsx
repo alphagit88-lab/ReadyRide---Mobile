@@ -307,223 +307,223 @@ export default function App() {
   // ─── Screens ───────────────────────────────────────────────────────────────
   const renderContent = () => {
     if (isInitializing) {
-    return (
-      <View style={[styles.appContainer, { justifyContent: 'center', alignItems: 'center' }]}>
-        <StatusBar barStyle="dark-content" backgroundColor={palette.background} />
-        <ActivityIndicator size="large" color={palette.primaryStrong} />
-        <Text style={styles.loadingBrand}>ReadyRide</Text>
-        <Text style={styles.loadingText}>Loading your workspace...</Text>
-      </View>
-    );
-  }
+      return (
+        <View style={[styles.appContainer, { justifyContent: 'center', alignItems: 'center' }]}>
+          <StatusBar barStyle="dark-content" backgroundColor={palette.background} />
+          <ActivityIndicator size="large" color={palette.primaryStrong} />
+          <Text style={styles.loadingBrand}>ReadyRide</Text>
+          <Text style={styles.loadingText}>Loading your workspace...</Text>
+        </View>
+      );
+    }
 
-  if (screen === 'login') {
-    return (
-      <>
-        <StatusBar barStyle="dark-content" backgroundColor={palette.background} />
-        <LoginScreen
-          apiUrl={API_URL}
-          onLogin={handleLogin}
-        />
-      </>
-    );
-  }
-
-  return (
-    <SafeAreaProvider>
-      <SafeAreaView style={styles.appContainer}>
-        <StatusBar barStyle="light-content" backgroundColor={palette.textPrimary} translucent={false} />
-
-        {/* ─── In-App Toast ─── */}
-        {toast && (
-          <Animated.View
-            style={[
-              styles.toast,
-              { opacity: toastAnim, transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [-60, 0] }) }] },
-            ]}
-          >
-            <Text style={styles.toastTitle}>{toast.title}</Text>
-            <Text style={styles.toastBody}>{toast.body}</Text>
-          </Animated.View>
-        )}
-
-        {showDatePicker && (
-          <DateTimePicker
-            value={paymentDateObj}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={(event, date) => {
-              setShowDatePicker(false);
-              if (date) {
-                setPaymentDateObj(date);
-              }
-            }}
+    if (screen === 'login') {
+      return (
+        <>
+          <StatusBar barStyle="dark-content" backgroundColor={palette.background} />
+          <LoginScreen
+            apiUrl={API_URL}
+            onLogin={handleLogin}
           />
-        )}
+        </>
+      );
+    }
 
-        {/* ─── Main Content ─── */}
-        <View style={styles.content}>
-          {screen === 'dashboard' && (
-            <DashboardScreen
-              vehicleCount={vehicles.length}
-              isVehiclesLoading={vehiclesLoading}
-              onLogout={handleLogout}
-              user={currentUser}
-              paymentDateObj={paymentDateObj}
-              setPaymentDateObj={setPaymentDateObj}
-              slipFile={slipFile}
-              onAttachmentOption={handleAttachmentOption}
-              onPayNow={handlePayNow}
-              isSubmitting={isSubmitting}
-              paymentAmount={paymentAmount}
-              setPaymentAmount={setPaymentAmount}
-              onShowDatePicker={() => setShowDatePicker(true)}
-              formatDateForDisplay={formatDateForDisplay}
-              todayStatus={todayStatus}
-              dateStatus={dateStatus}
-              dateStatusLoading={driverPaymentsStatus === 'loading'}
-              dateStatusError={driverPaymentsStatus === 'error'}
-              onNavigateToVehicles={() => setScreen('vehicles')}
-            />
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.appContainer}>
+          <StatusBar barStyle="light-content" backgroundColor={palette.textPrimary} translucent={false} />
+
+          {/* ─── In-App Toast ─── */}
+          {toast && (
+            <Animated.View
+              style={[
+                styles.toast,
+                { opacity: toastAnim, transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [-60, 0] }) }] },
+              ]}
+            >
+              <Text style={styles.toastTitle}>{toast.title}</Text>
+              <Text style={styles.toastBody}>{toast.body}</Text>
+            </Animated.View>
           )}
-          {screen === 'vehicles' && (
-            <VehiclesScreen
-              vehicles={vehicles}
-              isLoading={vehiclesLoading}
-              onSaveVehicle={handleSaveVehicle}
-              onRefreshVehicles={fetchVehicles}
-              token={authToken}
-              apiUrl={API_URL}
-            />
-          )}
-          {screen === 'drivers' && (
-            <DriversScreen token={authToken} apiUrl={API_URL} />
-          )}
-          {screen === 'payments' && (
-            <PaymentsScreen
-              token={authToken}
-              apiUrl={API_URL}
-              user={currentUser}
-              onPayPress={() => {
-                setScreen('dashboard');
-                setPaymentDateObj(new Date());
-                if (todayStatus?.amount_due) {
-                  setPaymentAmount(String(todayStatus.amount_due));
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={paymentDateObj}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(event, date) => {
+                setShowDatePicker(false);
+                if (date) {
+                  setPaymentDateObj(date);
                 }
-                setSlipFile(null);
               }}
             />
           )}
-          {screen === 'account' && (
-            <AccountScreen token={authToken} apiUrl={API_URL} />
-          )}
-          {screen === 'settings' && (
-            <SettingsScreen token={authToken} apiUrl={API_URL} />
-          )}
-          {screen === 'conditions' && (
-            <ConditionsScreen token={authToken} apiUrl={API_URL} />
-          )}
-        </View>
 
-        {/* ─── Bottom Nav ─── */}
-        <View style={styles.navContainer}>
-          <View style={styles.navbar}>
-            <TouchableOpacity
-              style={[styles.navItem, screen === 'dashboard' && styles.navItemActive]}
-              onPress={() => setScreen('dashboard')}
-              accessibilityRole="button"
-              accessibilityLabel="Dashboard"
-              accessibilityState={{ selected: screen === 'dashboard' }}
-            >
-              <Text style={styles.navIcon}>🏠</Text>
-              <Text style={[styles.navText, screen === 'dashboard' && styles.navTextActive]}>
-                Home
-              </Text>
-              {screen === 'dashboard' && <View style={styles.activeIndicator} />}
-            </TouchableOpacity>
-
-            {currentUser?.role === 'company' && (
-              <>
-                <TouchableOpacity
-                  style={[styles.navItem, screen === 'vehicles' && styles.navItemActive]}
-                  onPress={() => setScreen('vehicles')}
-                  accessibilityRole="button"
-                  accessibilityLabel="Vehicles"
-                  accessibilityState={{ selected: screen === 'vehicles' }}
-                >
-                  <Text style={styles.navIcon}>{getVehicleIcon(undefined)}</Text>
-                  <Text style={[styles.navText, screen === 'vehicles' && styles.navTextActive]}>
-                    Vehicles
-                  </Text>
-                  {screen === 'vehicles' && <View style={styles.activeIndicator} />}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.navItem, screen === 'drivers' && styles.navItemActive]}
-                  onPress={() => setScreen('drivers')}
-                  accessibilityRole="button"
-                  accessibilityLabel="Drivers"
-                  accessibilityState={{ selected: screen === 'drivers' }}
-                >
-                  <Text style={styles.navIcon}>👤</Text>
-                  <Text style={[styles.navText, screen === 'drivers' && styles.navTextActive]}>
-                    Drivers
-                  </Text>
-                  {screen === 'drivers' && <View style={styles.activeIndicator} />}
-                </TouchableOpacity>
-              </>
+          {/* ─── Main Content ─── */}
+          <View style={styles.content}>
+            {screen === 'dashboard' && (
+              <DashboardScreen
+                vehicleCount={vehicles.length}
+                isVehiclesLoading={vehiclesLoading}
+                onLogout={handleLogout}
+                user={currentUser}
+                paymentDateObj={paymentDateObj}
+                setPaymentDateObj={setPaymentDateObj}
+                slipFile={slipFile}
+                onAttachmentOption={handleAttachmentOption}
+                onPayNow={handlePayNow}
+                isSubmitting={isSubmitting}
+                paymentAmount={paymentAmount}
+                setPaymentAmount={setPaymentAmount}
+                onShowDatePicker={() => setShowDatePicker(true)}
+                formatDateForDisplay={formatDateForDisplay}
+                todayStatus={todayStatus}
+                dateStatus={dateStatus}
+                dateStatusLoading={driverPaymentsStatus === 'loading'}
+                dateStatusError={driverPaymentsStatus === 'error'}
+                onNavigateToVehicles={() => setScreen('vehicles')}
+              />
             )}
-
-            <TouchableOpacity
-              style={[styles.navItem, screen === 'payments' && styles.navItemActive]}
-              onPress={() => setScreen('payments')}
-              accessibilityRole="button"
-              accessibilityLabel="Payments"
-              accessibilityState={{ selected: screen === 'payments' }}
-            >
-              <Text style={styles.navIcon}>💳</Text>
-              <Text style={[styles.navText, screen === 'payments' && styles.navTextActive]}>
-                Payments
-              </Text>
-              {screen === 'payments' && <View style={styles.activeIndicator} />}
-            </TouchableOpacity>
-
-            {currentUser?.role === 'driver' && (
-              <>
-                <TouchableOpacity
-                  style={[styles.navItem, screen === 'account' && styles.navItemActive]}
-                  onPress={() => setScreen('account')}
-                  accessibilityRole="button"
-                  accessibilityLabel="Account"
-                  accessibilityState={{ selected: screen === 'account' }}
-                >
-                  <Text style={styles.navIcon}>👤</Text>
-                  <Text style={[styles.navText, screen === 'account' && styles.navTextActive]}>
-                    Account
-                  </Text>
-                  {screen === 'account' && <View style={styles.activeIndicator} />}
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.navItem, screen === 'conditions' && styles.navItemActive]}
-                  onPress={() => setScreen('conditions')}
-                  accessibilityRole="button"
-                  accessibilityLabel="Conditions"
-                  accessibilityState={{ selected: screen === 'conditions' }}
-                >
-                  <Text style={styles.navIcon}>📋</Text>
-                  <Text style={[styles.navText, screen === 'conditions' && styles.navTextActive]}>
-                    Conditions
-                  </Text>
-                  {screen === 'conditions' && <View style={styles.activeIndicator} />}
-                </TouchableOpacity>
-              </>
+            {screen === 'vehicles' && (
+              <VehiclesScreen
+                vehicles={vehicles}
+                isLoading={vehiclesLoading}
+                onSaveVehicle={handleSaveVehicle}
+                onRefreshVehicles={fetchVehicles}
+                token={authToken}
+                apiUrl={API_URL}
+              />
             )}
-
+            {screen === 'drivers' && (
+              <DriversScreen token={authToken} apiUrl={API_URL} />
+            )}
+            {screen === 'payments' && (
+              <PaymentsScreen
+                token={authToken}
+                apiUrl={API_URL}
+                user={currentUser}
+                onPayPress={() => {
+                  setScreen('dashboard');
+                  setPaymentDateObj(new Date());
+                  if (todayStatus?.amount_due) {
+                    setPaymentAmount(String(todayStatus.amount_due));
+                  }
+                  setSlipFile(null);
+                }}
+              />
+            )}
+            {screen === 'account' && (
+              <AccountScreen token={authToken} apiUrl={API_URL} />
+            )}
+            {screen === 'settings' && (
+              <SettingsScreen token={authToken} apiUrl={API_URL} />
+            )}
+            {screen === 'conditions' && (
+              <ConditionsScreen token={authToken} apiUrl={API_URL} />
+            )}
           </View>
-        </View>
-      </SafeAreaView>
-    </SafeAreaProvider>
-  );
+
+          {/* ─── Bottom Nav ─── */}
+          <View style={styles.navContainer}>
+            <View style={styles.navbar}>
+              <TouchableOpacity
+                style={[styles.navItem, screen === 'dashboard' && styles.navItemActive]}
+                onPress={() => setScreen('dashboard')}
+                accessibilityRole="button"
+                accessibilityLabel="Dashboard"
+                accessibilityState={{ selected: screen === 'dashboard' }}
+              >
+                <Text style={styles.navIcon}>🏠</Text>
+                <Text style={[styles.navText, screen === 'dashboard' && styles.navTextActive]}>
+                  Home
+                </Text>
+                {screen === 'dashboard' && <View style={styles.activeIndicator} />}
+              </TouchableOpacity>
+
+              {currentUser?.role === 'company' && (
+                <>
+                  <TouchableOpacity
+                    style={[styles.navItem, screen === 'vehicles' && styles.navItemActive]}
+                    onPress={() => setScreen('vehicles')}
+                    accessibilityRole="button"
+                    accessibilityLabel="Vehicles"
+                    accessibilityState={{ selected: screen === 'vehicles' }}
+                  >
+                    <Text style={styles.navIcon}>{getVehicleIcon(undefined)}</Text>
+                    <Text style={[styles.navText, screen === 'vehicles' && styles.navTextActive]}>
+                      Vehicles
+                    </Text>
+                    {screen === 'vehicles' && <View style={styles.activeIndicator} />}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.navItem, screen === 'drivers' && styles.navItemActive]}
+                    onPress={() => setScreen('drivers')}
+                    accessibilityRole="button"
+                    accessibilityLabel="Drivers"
+                    accessibilityState={{ selected: screen === 'drivers' }}
+                  >
+                    <Text style={styles.navIcon}>👤</Text>
+                    <Text style={[styles.navText, screen === 'drivers' && styles.navTextActive]}>
+                      Drivers
+                    </Text>
+                    {screen === 'drivers' && <View style={styles.activeIndicator} />}
+                  </TouchableOpacity>
+                </>
+              )}
+
+              <TouchableOpacity
+                style={[styles.navItem, screen === 'payments' && styles.navItemActive]}
+                onPress={() => setScreen('payments')}
+                accessibilityRole="button"
+                accessibilityLabel="Payments"
+                accessibilityState={{ selected: screen === 'payments' }}
+              >
+                <Text style={styles.navIcon}>💳</Text>
+                <Text style={[styles.navText, screen === 'payments' && styles.navTextActive]}>
+                  Payments
+                </Text>
+                {screen === 'payments' && <View style={styles.activeIndicator} />}
+              </TouchableOpacity>
+
+              {currentUser?.role === 'driver' && (
+                <>
+                  <TouchableOpacity
+                    style={[styles.navItem, screen === 'account' && styles.navItemActive]}
+                    onPress={() => setScreen('account')}
+                    accessibilityRole="button"
+                    accessibilityLabel="Account"
+                    accessibilityState={{ selected: screen === 'account' }}
+                  >
+                    <Text style={styles.navIcon}>👤</Text>
+                    <Text style={[styles.navText, screen === 'account' && styles.navTextActive]}>
+                      Account
+                    </Text>
+                    {screen === 'account' && <View style={styles.activeIndicator} />}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.navItem, screen === 'conditions' && styles.navItemActive]}
+                    onPress={() => setScreen('conditions')}
+                    accessibilityRole="button"
+                    accessibilityLabel="Conditions"
+                    accessibilityState={{ selected: screen === 'conditions' }}
+                  >
+                    <Text style={styles.navIcon}>📋</Text>
+                    <Text style={[styles.navText, screen === 'conditions' && styles.navTextActive]}>
+                      Conditions
+                    </Text>
+                    {screen === 'conditions' && <View style={styles.activeIndicator} />}
+                  </TouchableOpacity>
+                </>
+              )}
+
+            </View>
+          </View>
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
   };
 
   return (

@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "8792221100",
-    "project_id": "binrental",
-    "storage_bucket": "binrental.firebasestorage.app"
+    "project_number": "484755439356",
+    "project_id": "ready-ride-eff38",
+    "storage_bucket": "ready-ride-eff38.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:8792221100:android:d000626c3f573162120609",
+        "mobilesdk_app_id": "1:484755439356:android:2ff6747bf6eb713948a179",
         "android_client_info": {
           "package_name": "com.fleetmanagementmobile"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyASIAbEwh4wpwx2eD1V89mdo4X5d2hUm8o"
+          "current_key": "AIzaSyCFGHnDXbzCB9mOXtWS_CdyAPVA1VqW0Cg"
         }
       ],
       "services": {
