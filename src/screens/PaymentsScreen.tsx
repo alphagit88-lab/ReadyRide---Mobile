@@ -343,14 +343,13 @@ export default function PaymentsScreen({
                         onPress={async () => {
                           setLoadingSlipId(item.id);
                           const fullUrl = apiUrl.replace('/api', '') + '/storage/' + item.slip_path;
-                          if (fullUrl.toLowerCase().endsWith('.pdf')) {
-                            await Linking.openURL(fullUrl);
-                            setLoadingSlipId(null);
-                          } else {
+
+                          if (!fullUrl.toLowerCase().endsWith('.pdf')) {
                             await Image.prefetch(fullUrl).catch(() => { });
-                            setSelectedSlipUrl(fullUrl);
-                            setLoadingSlipId(null);
                           }
+
+                          setSelectedSlipUrl(fullUrl);
+                          setLoadingSlipId(null);
                         }}
                         accessibilityRole="button"
                         accessibilityLabel="View payment slip">
@@ -565,7 +564,7 @@ const styles = StyleSheet.create({
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: spacing.sm,
+    gap: spacing.xs,
     borderTopWidth: 1,
     borderTopColor: palette.border,
     paddingTop: spacing.md,
@@ -596,16 +595,16 @@ const styles = StyleSheet.create({
 
   actionButton: {
     backgroundColor: palette.gray100,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs - 2,
     borderRadius: radii.pill,
-    minHeight: 30,
+    minHeight: 25,
     justifyContent: 'center',
     alignItems: 'center',
   },
   actionButtonText: {
     color: palette.textPrimary,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
   },
   approveButton: {

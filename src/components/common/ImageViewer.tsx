@@ -1,5 +1,6 @@
 import React from 'react';
-import { Modal, View, Image, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { Modal, View, Image, TouchableOpacity, Text, StyleSheet, Dimensions } from 'react-native';
+import Pdf from 'react-native-pdf';
 import { palette } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
 import { radii } from '../../theme/shape';
@@ -17,7 +18,16 @@ export default function ImageViewer({ uri, onClose }: ImageViewerProps) {
           <Text style={styles.closeText}>✕</Text>
         </TouchableOpacity>
         {uri && (
-          <Image source={{ uri }} style={styles.image} resizeMode="contain" />
+          uri.toLowerCase().endsWith('.pdf') ? (
+            <Pdf
+              source={{ uri, cache: true }}
+              style={styles.pdf}
+              trustAllCerts={false}
+              onError={(error) => console.log(error)}
+            />
+          ) : (
+            <Image source={{ uri }} style={styles.image} resizeMode="contain" />
+          )
         )}
       </View>
     </Modal>
@@ -30,6 +40,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.92)',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingTop: 80,
+    paddingBottom: 40
   },
   closeBtn: {
     position: 'absolute',
@@ -49,6 +61,11 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    height: '80%',
+    height: '100%',
   },
+  pdf: {
+    flex: 1,
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height,
+  }
 });

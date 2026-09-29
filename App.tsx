@@ -12,6 +12,7 @@ import PaymentsScreen from './src/screens/PaymentsScreen';
 import AccountScreen from './src/screens/AccountScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import ConditionsScreen from './src/screens/ConditionsScreen';
+import NotificationsScreen from './src/screens/NotificationsScreen';
 import { palette } from './src/theme/colors';
 import { spacing } from './src/theme/spacing';
 import { radii, shadowPresets } from './src/theme/shape';
@@ -46,6 +47,7 @@ export default function App() {
   const toastAnim = useRef(new Animated.Value(0)).current;
   const [dateStatus, setDateStatus] = useState<any>(null);
   const [dateStatusLoading, setDateStatusLoading] = useState(false);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 
   const formatDateForDisplay = (date: Date) => {
     const yyyy = date.getFullYear();
@@ -123,8 +125,16 @@ export default function App() {
 
     registerFcmToken(API_URL, authToken);
 
+    // Fetch unread notification count
+    fetch(`${API_URL}/notifications/unread-count`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+    }).then(r => r.json()).then(d => {
+      setUnreadNotificationsCount(d.unread_count || 0);
+    }).catch(() => {});
+
     const unsub = subscribeToForegroundNotifications((title, body) => {
       showToast(title, body);
+      setUnreadNotificationsCount(prev => prev + 1);
     });
     return () => unsub();
   }, [authToken]);
@@ -423,6 +433,14 @@ export default function App() {
             {screen === 'conditions' && (
               <ConditionsScreen token={authToken} apiUrl={API_URL} />
             )}
+            {screen === 'notifications' && (
+              <NotificationsScreen
+                token={authToken}
+                apiUrl={API_URL}
+                onMarkAsRead={() => setUnreadNotificationsCount(0)}
+                onDecrementUnread={() => setUnreadNotificationsCount(prev => Math.max(0, prev - 1))}
+              />
+            )}
           </View>
 
           {/* ─── Bottom Nav ─── */}
@@ -519,6 +537,28 @@ export default function App() {
                 </>
               )}
 
+              <TouchableOpacity
+                style={[styles.navItem, screen === 'notifications' && styles.navItemActive]}
+                onPress={() => setScreen('notifications')}
+                accessibilityRole="button"
+                accessibilityLabel="Notifications"
+                accessibilityState={{ selected: screen === 'notifications' }}
+              >
+                <View>
+                  <Text style={styles.navIcon}>🔔</Text>
+                  {unreadNotificationsCount > 0 && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>
+                        {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={[styles.navText, screen === 'notifications' && styles.navTextActive]}>
+                  Alerts
+                </Text>
+                {screen === 'notifications' && <View style={styles.activeIndicator} />}
+              </TouchableOpacity>
             </View>
           </View>
         </SafeAreaView>
@@ -568,12 +608,32 @@ const styles = StyleSheet.create({
     height: 64,
     alignItems: 'center',
   },
-  navItem: { paddingHorizontal: spacing.lg, alignItems: 'center', justifyContent: 'center', height: '100%' },
+  navItem: { paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'center', height: '100%' },
   navItemActive: { backgroundColor: 'transparent' },
   navIcon: { fontSize: 22, marginBottom: 4 },
   navText: { fontSize: 10, color: palette.textMuted, fontWeight: '600', letterSpacing: 0.2 },
   navTextActive: { color: palette.primaryStrong, fontWeight: '800' },
   activeIndicator: { position: 'absolute', top: -2, width: 28, height: 4, backgroundColor: palette.primaryStrong, borderRadius: radii.pill },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: palette.surface,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '800',
+    lineHeight: 12,
+  },
 
   toast: {
     position: 'absolute',
